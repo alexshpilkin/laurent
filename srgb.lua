@@ -1,4 +1,6 @@
-local srgb = {}
+local srgb = setmetatable({}, {__call = function (self, ...)
+	return self.xyz(...)
+end})
 
 local ok, _srgb = pcall(require, '_srgb') -- run this file to regenerate
 if not ok then
