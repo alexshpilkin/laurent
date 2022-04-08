@@ -29,25 +29,24 @@ function ppm:format(width, height, depth)
 end
 
 function ppm:pixel(x, y, z)
-	local file, maxval, i = self.file, self.maxval, self.i
+	local file, maxval, i = self.file, self.maxval, self.i + 1
 
 	-- The PNM specifications say to limit ourselves to 70 chars/line,
 	-- but meh, the files are easier to inspect this way.
 
 	local r, g, b = rgb(x, y, z)
 	file:write(format('%s%3d %3d %3d',
-	                  i ~= 0 and '  ' or '',
+	                  i > 1 and '  ' or '',
 	                  quant(r, 0, maxval),
 	                  quant(g, 0, maxval),
 	                  quant(b, 0, maxval)))
 
-	i = i + 1
 	if i == self.width then
 		file:write('\n')
 		i = 0; local j = self.j + 1
 		if j == self.height then
-			i, j = nil, nil
 			self.file:close()
+			self.file, i, j = nil, nil, nil
 		end
 		self.j = j
 	end

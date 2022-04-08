@@ -1,12 +1,12 @@
 local width, height = 256, 256
 
-local ppm = require 'ppm'
-local bt709 = require 'bt709' -- FIXME use sRGB outside testing
+local srgb = require 'srgb'
+local xyze = require 'xyze'
 
-local pic = assert(ppm("render.ppm", 'w'))
+local pic = assert(xyze("render.hdr", 'wb'))
 pic:format(width, height)
 for j = height - 1, 0, -1 do
 	for i = 0, width - 1 do
-		pic:pixel(bt709(i / (width - 1), j / (height - 1), 0.25))
+		pic:pixel(srgb(i / (width - 1), j / (height - 1), 0.25))
 	end
 end
