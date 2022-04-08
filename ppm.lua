@@ -4,8 +4,8 @@ end})
 ppm.__index = ppm
 
 local format = string.format
-local srgb = require 'srgb'
-local quant, rgb = srgb.quant, srgb.rgb
+local bt709 = require 'bt709'
+local quant, rgb = bt709.quant, bt709.rgb_
 
 function ppm.open(file, ...)
 	if file == nil then
@@ -24,7 +24,7 @@ function ppm:format(width, height, depth)
 	local maxval = 2^(depth ~= nil and tonumber(depth) or 8) - 1
 	self.maxval = maxval
 
-	self.file:write(format('P3\n%s %s\n%s\n', width, height, maxval))
+	self.file:write(format('P3\n%d %d\n%d\n', width, height, maxval))
 	self.i, self.j = 0, 0
 end
 
@@ -35,7 +35,7 @@ function ppm:pixel(x, y, z)
 	-- but meh, the files are easier to inspect this way.
 
 	local r, g, b = rgb(x, y, z)
-	file:write(format('%s%3s %3s %3s',
+	file:write(format('%s%3d %3d %3d',
 	                  i ~= 0 and '  ' or '',
 	                  quant(r, 0, maxval),
 	                  quant(g, 0, maxval),
