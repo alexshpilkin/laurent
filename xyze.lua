@@ -83,15 +83,36 @@ local ldexp =
 		return m * 2^halfe * 2^(e - halfe)
 	end
 
-function xyze.open(file, ...)
+function xyze.open(file, width, height, options)
+	if width == nil then -- open{file, ...}
+		options, file = file, file[1]
+	elseif height == nil then -- open(file, {...})
+		options = width
+	elseif options == nil then -- open(file, width, height)
+		options = {}
+	-- else -- open(file, width, height, {...})
+	end
+
 	if file == nil then
 		file = io.output() -- pray it is in the right mode
-	elseif type(file) == 'string' then
+	elseif not pcall(function () return assert(file.write) end) then
 		local err
-		file, err = io.open(file, ...)
+		file, err = io.open(file, 'wb')
 		if not file then return nil, err end
 	end
-	return setmetatable({file = file}, xyze)
+	width  = assert(tonumber(options.width or width))
+	height = assert(tonumber(options.height or height))
+
+	file:write(format('#?RADIANCE\n' ..
+	                  'FORMAT=32-bit_rle_xyze\n' ..
+	                  'SOFTWARE=rtiow/xyze.lua $Id$\n' ..
+	                  '\n-Y %d +X %d\n',
+	                  height, width))
+
+	return setmetatable({
+		file = file, width = width, height = height,
+		k = 0, n = width * height
+	}, xyze)
 end
 
 local m = ldexp(511 / 512, 127) -- maximum representable value (center)
@@ -112,19 +133,9 @@ local function encode(x, y, z)
 	return (char(floor(x), floor(y), floor(z), e))
 end
 
-function xyze:format(width, height)
-	width, height = tonumber(width), tonumber(height)
-	self.width, self.height, self.n = width, height, width * height
+function xyze:__call(...) self:putpx(...) end
 
-	self.file:write(format('#?RADIANCE\n' ..
-	                       'FORMAT=32-bit_rle_xyze\n' ..
-	                       'SOFTWARE=rtiow/xyze.lua $Id$\n' ..
-	                       '\n-Y %d +X %d\n',
-	                       height, width))
-	self.k = 0
-end
-
-function xyze:pixel(x, y, z)
+function xyze:putpx(x, y, z)
 	local k = self.k + 1
 	self.file:write(encode(x, y, z))
 
