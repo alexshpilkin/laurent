@@ -105,14 +105,11 @@ local basic = {
 	-- also gives the threshold for the inverse transfer function, and
 	-- it is wrong in the last decimal place because it seems to have
 	-- been obtained from the rounded threshold, not the exact one.
+	-- The bg-sRGB spec quotes the same two values, and scRGB goes one
+	-- step further by only retaining the inverse one.
 
-	-- The bg-sRGB spec, faced with the necessity of increasing the
-	-- precision of the threshold values or ending up with a hole in
-	-- the transfer curve, boldly chooses to do nothing and retains
-	-- both the too-imprecise forward value and the incorrect inverse
-	-- one.  Finally, the scRGB spec further mitigates the oversupply
-	-- of clarity on the parameter market by only quoting the inverse
-	-- threshold, which is, again, wrong even to four digits.
+	-- However, after quantization, the differences turn out not to
+	-- matter, even with 16-bit accuracy as targeted by bg-sRGB.
 
 	-- In practice, almost nobody appears to be using the historical
 	-- smooth thresholds.  It is unclear whether the continuous or the
@@ -145,7 +142,7 @@ if data.thresh == nil then
 		if ((t - thresh) / t):abs() < eps then break end
 		thresh = t
 	end
-	data.thresh = thresh -- 0.04042
+	data.thresh = thresh -- 0.04045
 
 	-- Here is what the computation would be if we imposed continuity
 	-- of the derivative instead of fixing the slope:
