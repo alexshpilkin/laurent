@@ -12,6 +12,7 @@ end})
 rgb.__index = rgb
 
 local abs, max, min = math.abs, math.max, math.min
+local insert = table.insert
 
 local unpack = unpack
 if unpack == nil then unpack = table.unpack end -- Lua 5.2+
@@ -265,7 +266,7 @@ function rgb.space(data, ...)
 	if ... then return space end -- guess we were in a module
 
 	local keys = {}
-	for k in pairs(data) do keys[#keys+1] = k end
+	for k in pairs(data) do insert(keys, k) end
 	table.sort(keys, function (a, b)
 		-- Sort matrix entries together.
 		if #a == 2 and #b ~= 2 then return true  end

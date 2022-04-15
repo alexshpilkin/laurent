@@ -8,6 +8,8 @@
 -- from the spectra tabulated in ISO 11664-1:2007 (which defines D65) and
 -- ISO 11664-2:2007 (which defines the CIE 1931 reference observer).
 
+local insert = table.insert
+
 local basic = {
 	-- HDTV sec. 1, CICP table 2 row 1
 	r = {'0.640', '0.330', '0.030'},
@@ -34,7 +36,7 @@ if data.xr == nil then -- will need white point
 
 		local lines, head = file:lines(), {}
 		for cell in string.gmatch(lines(), '[^\t\n]+') do
-			head[#head+1] = cell
+			insert(head, cell)
 		end
 
 		return function ()
