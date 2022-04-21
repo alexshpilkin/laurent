@@ -14,11 +14,8 @@ rgb.__index = rgb
 local abs, max, min = math.abs, math.max, math.min
 local insert = table.insert
 
-local unpack = unpack
-if unpack == nil then unpack = table.unpack end -- Lua 5.2+
-
-local tointeger = math.tointeger -- Lua 5.3+
-if tointeger == nil then function tointeger(x) return x end end
+local tointeger = math.tointeger or function (x) return x end
+local unpack = unpack or table.unpack
 
 -- This bit of floating-point hackery only works when the floating-point
 -- radix is two, but without a builtin round() in Lua we have no choice.

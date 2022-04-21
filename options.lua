@@ -14,7 +14,7 @@ local function matcher(option)
 	end
 	option = '^'..option
 	return function (opt)
-		if not find(opt, option) then return end
+		if not find(opt, option) then return nil end
 		local arg = sub(opt, len + 1)
 		return arg ~= '' and arg or sub(opt, 1, 1) == sign and ''
 	end

@@ -41,7 +41,7 @@ if data.xr == nil then -- will need white point
 
 		return function ()
 			local line = lines()
-			if not line then return end
+			if not line then return nil end
 
 			local i, row = 1, {}
 			for cell in string.gmatch(line, '[^\t\n]+') do

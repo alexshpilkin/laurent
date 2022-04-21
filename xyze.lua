@@ -34,6 +34,7 @@ local xyze = setmetatable({__name = 'xyze'}, {__call = function (self, ...)
 end})
 xyze.__index = xyze
 
+local tonumber = tonumber
 local abs, floor, log, max, min = math.abs, math.floor, math.log, math.max, math.min
 local char, format = string.char, string.format
 
@@ -95,7 +96,7 @@ function xyze.open(file, width, height, options)
 
 	if file == nil then
 		file = io.output() -- pray it is in the right mode
-	elseif not pcall(function () return assert(file.write) end) then
+	elseif not pcall(function () assert(file.write) end) then
 		local err
 		file, err = io.open(file, 'wb')
 		if not file then return nil, err end

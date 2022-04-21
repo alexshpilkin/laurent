@@ -19,7 +19,7 @@ function ppm.open(file, width, height, options)
 
 	if file == nil then
 		file = io.output() -- pray it is in the right mode
-	elseif not pcall(function () return assert(file.write) end) then
+	elseif not pcall(function () assert(file.write) end) then
 		local err
 		file, err = io.open(file, 'wb')
 		if not file then return nil, err end
