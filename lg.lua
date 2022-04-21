@@ -7,12 +7,16 @@ local lg = {}
 -- [2]: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl
 -- [3]: https://github.com/KhronosGroup/OpenGL-Refpages
 
-local assert, tonumber, type = assert, tonumber, type
-local find, substr = string.find, string.sub
+local assert, select, tonumber, type = assert, select, tonumber, type
+local find, gsub, substr = string.find, string.gsub, string.sub
 local concat, insert = table.concat, table.insert
 
 local loadstring = loadstring or load
 local tointeger = math.tointeger or function (x) return x end
+
+local function nope() end
+local function id(...) return ... end
+local function nid(...) return select('#', ...), ... end
 
 local function setdefault(table, default)
 	return setmetatable(table, {__index = function (self, key)
@@ -59,24 +63,27 @@ local _number2, _number3, _number4
 function lg.number2(_1, _2)
 	local n; n, _1, _2 = shift(_1, shift(_2, 0))
 	if n == 1 then n, _2 = 2, _1 end
-	assert(n == 2); return (_number2(_1, _2))
+	assert(n == 2, "wrong component count")
+	return (_number2(_1, _2))
 end
 
 function lg.number3(_1, _2, _3)
 	local n; n, _1, _2, _3 = shift(_1, shift(_2, shift(_3, 0)))
 	if n == 1 then n, _2, _3 = 3, _1, _1 end
-	assert(n == 3); return (_number3(_1, _2, _3))
+	assert(n == 3, "wrong component count")
+	return (_number3(_1, _2, _3))
 end
 
 function lg.number4(_1, _2, _3, _4)
 	local n; n, _1, _2, _3, _4 = shift(_1, shift(_2, shift(_3, shift(_4, 0))))
 	if n == 1 then n, _2, _3, _4 = 4, _1, _1, _1 end
-	assert(n == 4); return (_number4(_1, _2, _3, _4))
+	assert(n == 4, "wrong component count")
+	return (_number4(_1, _2, _3, _4))
 end
 
 function lg.tonumbers(v)
 	local n, _1, _2, _3, _4 = shift(v, 0)
-	assert(n ~= nil)
+	assert(n, "numbers expected")
 	if n == 1 then return _1 end
 	if n == 2 then return (_number2(_1, _2)) end
 	if n == 3 then return (_number3(_1, _2, _3)) end
@@ -91,21 +98,75 @@ local function conform(u, v)
 	local vn, v1, v2, v3, v4 = shift(v, 0)
 	if un == 1 then un, u2, u3, u4 = vn, u1, u1, u1 end
 	if vn == 1 then vn, v2, v3, v4 = un, v1, v1, v1 end
-	assert(un > 0 and (vn == 0 or vn == un))
+	assert(un and vn, "numbers expected")
+	assert(un > 0 and (vn == 0 or vn == un), "component counts do not match")
 	return un, u1, v1, u2, v2, u3, v3, u4, v4
 end
 
-function lg.lift(f) return function (u, v)
-	local n, u1, v1, u2, v2, u3, v3, u4, v4 = conform(u, v)
-	u1, v1 = f(u1, v1)
-	if n == 1 then return u1, v1 end
-	u2, v2 = f(u2, v2)
-	if n == 2 then return _number2(u1, u2), v1 and _number2(v1, v2) end
-	u3, v3 = f(u3, v3)
-	if n == 3 then return _number3(u1, u2, u3), v1 and _number3(v1, v2, v3) end
-	u4, v4 = f(u4, v4)
-	return _number4(u1, u2, u3, u4), v1 and _number4(v1, v2, v3, v4)
-end end
+-- lifted functions should only be used at a fixed number of arities, so
+-- avoid max(unpack( ... )) and similar
+
+function lg.lift(f)
+	local lifts = setdefault({}, function (k)
+		local args, arg1s, arg2s, arg3s, arg4s = {}, {}, {}, {}, {}
+		local shifts = {}
+
+		for i = 1, k do
+			args[i] = 'a'..i..'v'
+			arg1s[i], arg2s[i] = 'a'..i..'1', 'a'..i..'2'
+			arg3s[i], arg4s[i] = 'a'..i..'3', 'a'..i..'4'
+			shifts[i] = gsub([[
+				local @n, @1, @2, @3, @4 = shift(@v, 0)
+				assert(@n, "numbers expected")
+				if @n == 1 then @n, @2, @3, @4 = n, @1, @1, @1 end
+				if @n >= 1 and n == 1 then n = @n end
+				assert(n == @n, "component counts do not match")
+			]], '@', 'a'..i)
+		end
+
+		return loadstring([[
+			local f, assert, nid, shift, _number2, _number3, _number4 = ...
+			return function (]]..concat(args, ', ')..[[)
+				local n = 1
+				]]..concat(shifts, '\n')..[[
+				local r, u1, v1 = nid(f(]]..concat(arg1s, ', ')..[[))
+				if n == 1 then
+					if r == 0 then return end
+					if r == 1 then return u1 end
+					return u1, v1
+				end
+				local r2, u2, v2 = nid(f(]]..concat(arg2s, ', ')..[[))
+				assert(r == r2)
+				if n == 2 then
+					if r == 0 then return end
+					local u = _number2(u1, u2)
+					if r == 1 then return u end
+					return u, _number2(v1, v2)
+				end
+				local r3, u3, v3 = nid(f(]]..concat(arg3s, ', ')..[[))
+				assert(r == r3)
+				if n == 3 then
+					if r == 0 then return end
+					local u = _number3(u1, u2, u3)
+					if r == 1 then return u end
+					return u, _number3(v1, v2, v3)
+				end
+				local r4, u4, v4 = nid(f(]]..concat(arg4s, ', ')..[[))
+				assert(r == r4)
+				if r == 0 then return end
+				local u = _number4(u1, u2, u3, u4)
+				if r == 1 then return u end
+				return u, _number4(v1, v2, v3, v4)
+			end
+		]])(f, assert, nid, shift, _number2, _number3, _number4)
+	end)
+	return function (...)
+		local r, u, v = nid(lifts[select('#', ...)](...))
+		if r == 0 then return end
+		if r == 1 then return u end
+		return u, v
+	end
+end
 local lift = lg.lift
 
 -- operators
@@ -138,8 +199,6 @@ local eq = {
 }
 
 -- swizzling
-
-local function id(...) return ... end
 
 local function values(key, set)
 	local step, list, seen, uniq = 1, {}, {}, true
@@ -179,8 +238,6 @@ local function makenewindex(key, set)
 end
 
 -- raw constructors
-
-local function nope() end
 
 local function makemetatable(n)
 	local xyzw = substr('xyzw', 1, n)
