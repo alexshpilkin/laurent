@@ -56,7 +56,7 @@ function ppm:putpx(x, y, z)
 		file:write('\n')
 		i = 0; local j = self.j + 1
 		if j == self.height then
-			self.file:close()
+			file:close()
 			self.file, i, j = nil, nil, nil
 		end
 		self.j = j

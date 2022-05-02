@@ -59,7 +59,7 @@ local frexp =
 	try(function () return require 'mathx'.frexp end) or
 	function (x)
 		x = tonumber(x)
-		if x == 0 or x + x == x or x ~= x then return x, 0 end
+		if x + x == x or x ~= x then return x, 0 end
 		local e = floor(log(abs(x)) / log2)
 		x = x / 2^e
 		if x >= 2 then x, e = x / 2, e + 1 end
@@ -79,7 +79,7 @@ local ldexp =
 	try(function () return require 'mathx'.ldexp end) or
 	function (m, e)
 		m, e = tonumber(m), floor(tonumber(e) + 0.5)
-		if m == 0 or m + m == m or m ~= m then return m end
+		if m + m == m or m ~= m then return m end
 		local halfe = floor(e / 2)
 		return m * 2^halfe * 2^(e - halfe)
 	end
@@ -106,7 +106,6 @@ function xyze.open(file, width, height, options)
 
 	file:write(format('#?RADIANCE\n' ..
 	                  'FORMAT=32-bit_rle_xyze\n' ..
-	                  'SOFTWARE=rtiow/xyze.lua $Id$\n' ..
 	                  '\n-Y %d +X %d\n',
 	                  height, width))
 
@@ -137,11 +136,11 @@ end
 function xyze:__call(...) self:putpx(...) end
 
 function xyze:putpx(x, y, z)
-	local k = self.k + 1
-	self.file:write(encode(x, y, z))
+	local file, k = self.file, self.k + 1
+	file:write(encode(x, y, z))
 
 	if k == self.n then
-		self.file:close()
+		file:close()
 		self.file, k = nil, nil
 	end
 	self.k = k
