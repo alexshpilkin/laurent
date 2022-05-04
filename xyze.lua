@@ -34,55 +34,11 @@ local xyze = setmetatable({__name = 'xyze'}, {__call = function (self, ...)
 end})
 xyze.__index = xyze
 
-local tonumber = tonumber
-local abs, floor, log, max, min = math.abs, math.floor, math.log, math.max, math.min
+local lg = require 'lg'
+
+local clamp, floor, frexp, ldexp, number3 = lg.clamp, lg.floor, lg.frexp, lg.ldexp, lg.number3
+local max = math.max
 local char, format = string.char, string.format
-
-local function try(...)
-	local ok, result = pcall(...)
-	if ok then return result end
-end
-
-local log2 = log(2)
-local frexp =
-	math.frexp or -- Lua 5.2-
-	try(function ()
-		local ffi = require 'ffi'
-		ffi.cdef [[ double frexp(double, int *); ]]
-		local _frexp, _int = ffi.C.frexp, ffi.typeof 'int [1]'
-		return _frexp and function (x)
-			local e = _int()
-			local m = _frexp(tonumber(x), e)
-			return m, e[0]
-		end
-	end) or
-	try(function () return require 'mathx'.frexp end) or
-	function (x)
-		x = tonumber(x)
-		if x + x == x or x ~= x then return x, 0 end
-		local e = floor(log(abs(x)) / log2)
-		x = x / 2^e
-		if x >= 2 then x, e = x / 2, e + 1 end
-		return x / 2, e + 1
-	end
-
-local ldexp =
-	math.ldexp or -- Lua 5.2-
-	try(function ()
-		local ffi = require 'ffi'
-		ffi.cdef [[ double ldexp(double, int); ]]
-		local _ldexp = ffi.C.ldexp
-		return _ldexp and function (m, e)
-			return _ldexp(tonumber(m), floor(tonumber(e) + 0.5))
-		end
-	end) or
-	try(function () return require 'mathx'.ldexp end) or
-	function (m, e)
-		m, e = tonumber(m), floor(tonumber(e) + 0.5)
-		if m + m == m or m ~= m then return m end
-		local halfe = floor(e / 2)
-		return m * 2^halfe * 2^(e - halfe)
-	end
 
 function xyze.open(file, width, height, options)
 	if width == nil then -- open{file, ...}
@@ -117,7 +73,7 @@ end
 
 local m = ldexp(511 / 512, 127) -- maximum representable value (center)
 
-local function encode(x, y, z)
+local function encode(...)
 
 	-- Note that the top bit in the mantissa is encoded, as an exponent
 	-- that normalizes the maximum component may not normalize the rest
@@ -126,18 +82,18 @@ local function encode(x, y, z)
 	-- is exceptionally encoded as {0,0,0,0}, and Radiance will decode
 	-- any value with a zero exponent as black.
 
-	x, y, z = max(0, min(m, x)), max(0, min(m, y)), max(0, min(m, z))
-	local _, e = frexp(max(x, y, z)) -- e = 0 if max = 0
-	x, y, z, e = ldexp(x, 8-e), ldexp(y, 8-e), ldexp(z, 8-e), e + 128
-	if e <= 0 then x, y, z, e = 0, 0, 0, 0 end
-	return (char(floor(x), floor(y), floor(z), e))
+	local c = clamp(number3(...), 0, m)
+	local _, e = frexp(max(c.x, c.y, c.z)) -- e = 0 if max = 0
+	c, e = floor(ldexp(c, 8 - e)), e + 128
+	if e <= 0 then c, e = number3(0), 0 end
+	return (char(c.x, c.y, c.z, e))
 end
 
-function xyze:__call(...) self:putpx(...) end
+function xyze:__call(...) self:putxyz(...) end
 
-function xyze:putpx(x, y, z)
+function xyze:putxyz(...)
 	local file, k = self.file, self.k + 1
-	file:write(encode(x, y, z))
+	file:write(encode(...))
 
 	if k == self.n then
 		file:close()

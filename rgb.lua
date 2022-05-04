@@ -11,29 +11,13 @@ local rgb = setmetatable({__name = 'rgb'}, {__call = function (self, ...)
 end})
 rgb.__index = rgb
 
-local abs, max, min = math.abs, math.max, math.min
+local lg = require 'lg'
+
+local clamp, lift, number3, round, sub = lg.clamp, lg.lift, lg.number3, lg.round, lg.sub
+local abs = math.abs
 local insert = table.insert
 
-local tointeger = math.tointeger or function (x) return x end
 local unpack = unpack or table.unpack
-
--- This bit of floating-point hackery only works when the floating-point
--- radix is two, but without a builtin round() in Lua we have no choice.
-
-local topbit = 1.0
-while true do
-	local t = topbit * 2
-	if t + 1 == t then break end
-	topbit = t
-end
-local function round(x)
-	if not (abs(x) < topbit) then return tointeger(x) end
-	if x > 0 then
-		return tointeger(x + topbit - topbit)
-	else
-		return tointeger(x - topbit + topbit)
-	end
-end
 
 -- This quantization is prescribed by the specifications for both HDTV and
 -- sRGB.  Note that it yields half-width quantization intervals around
@@ -42,11 +26,11 @@ end
 -- TODO scRGB can encode negative luminances
 
 function rgb.quant(c, lo, hi)
-	return round(max(lo, min(hi, (hi - lo)*c + lo)))
+	return (round(clamp(sub(hi, lo)*c + lo, lo, hi)))
 end
 
 function rgb.iquant(c, lo, hi)
-	return (max(lo, min(hi, c)) - lo) / (hi - lo)
+	return (clamp(c, lo, hi) - lo) / sub(hi, lo)
 end
 
 local function each(func, ...)
@@ -60,6 +44,8 @@ end
 local function num(value)
 	return type(value) == 'string' and tonumber(value) or value:get_d()
 end
+
+-- FIXME move det and solve to lg when it is mpfr-compatible
 
 local function det(m)
 	return m[1][1] * m[2][2] * m[3][3]
@@ -142,14 +128,13 @@ function rgb.space(data, ...)
 		data.xb, data.yb, data.zb = xb, yb, zb
 	end
 
-	local xr, yr, zr = each(num, data.xr, data.yr, data.zr)
-	local xg, yg, zg = each(num, data.xg, data.yg, data.zg)
-	local xb, yb, zb = each(num, data.xb, data.yb, data.zb)
+	local xyzr = number3(each(num, data.xr, data.yr, data.zr))
+	local xyzg = number3(each(num, data.xg, data.yg, data.zg))
+	local xyzb = number3(each(num, data.xb, data.yb, data.zb))
 
-	function space.xyz(r, g, b)
-		return xr*r + xg*g + xb*b,
-		       yr*r + yg*g + yb*b,
-		       zr*r + zg*g + zb*b
+	function space.xyz(...)
+		local c = number3(...)
+		return xyzr * c.r + xyzg * c.g + xyzb * c.b
 	end
 	local xyz = space.xyz
 
@@ -169,14 +154,13 @@ function rgb.space(data, ...)
 		data.rz, data.gz, data.bz = solve(xyz_rgb, {0, 0, 1})
 	end
 
-	local rx, ry, rz = each(num, data.rx, data.ry, data.rz)
-	local gx, gy, gz = each(num, data.gx, data.gy, data.gz)
-	local bx, by, bz = each(num, data.bx, data.by, data.bz)
+	local rgbx = number3(each(num, data.rx, data.gx, data.bx))
+	local rgby = number3(each(num, data.ry, data.gy, data.by))
+	local rgbz = number3(each(num, data.rz, data.gz, data.bz))
 
-	function space.rgb(x, y, z)
-		return rx*x + ry*y + rz*z,
-		       gx*x + gy*y + gz*z,
-		       bx*x + by*y + bz*z
+	function space.rgb(...)
+		local c = number3(...)
+		return rgbx * c.x + rgby * c.y + rgbz * c.z
 	end
 	local rgb = space.rgb -- luacheck: ignore 431 (shadowing upvalue)
 
@@ -218,7 +202,7 @@ function rgb.space(data, ...)
 	-- The general form of a power-law curve that passes through (1,1)
 	-- is  f(x) = ((x + offset) / (1 + offset))^gamma.
 
-	function space.transfer(c)
+	space.transfer = lift(function (c)
 		if abs(c) <= thresh then
 			return c / slope
 		elseif c > 0 then
@@ -226,14 +210,14 @@ function rgb.space(data, ...)
 		else
 			return -((-c + offset) / (1 + offset))^gamma
 		end
-	end
+	end)
 	local transfer = space.transfer
 
-	function space.xyz_(r, g, b)
-		return xyz(transfer(r), transfer(g), transfer(b))
+	function space.xyz_(...)
+		return (xyz(transfer(number3(...))))
 	end
 
-	function space.itransfer(c)
+	space.itransfer = lift(function(c)
 		if abs(c) <= ithresh then
 			return slope * c
 		elseif c > 0 then
@@ -241,12 +225,11 @@ function rgb.space(data, ...)
 		else
 			return -((1 + offset) * (-c)^igamma - offset)
 		end
-	end
+	end)
 	local itransfer = space.itransfer
 
-	function space.rgb_(x, y, z)
-		local r, g, b = rgb(x, y, z)
-		return itransfer(r), itransfer(g), itransfer(b)
+	function space.rgb_(...)
+		return (itransfer(rgb(...)))
 	end
 
 	if ... then return space end -- guess we were in a module

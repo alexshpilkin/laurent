@@ -26,6 +26,11 @@ local function setdefault(table, default)
 	end})
 end
 
+local function try(...)
+	local ok, result = pcall(...)
+	if ok then return result end
+end
+
 -- constructors
 
 -- yields more meaningful type errors down the line
@@ -300,19 +305,37 @@ end
 
 -- functions
 
--- abs, frexp, ldexp
+-- abs
+
+local _abs = math.abs
 
 -- Cg also has sign(), C99 has copysign()
-lg.abs = lift(math.abs)
-lg.frexp = math.frexp and lift(math.frexp)
-lg.ldexp = math.ldexp and lift(math.ldexp)
+lg.abs = lift(_abs)
 
--- floor, ceil, frac, modf
+-- floor, ceil, round, frac, modf
 
 local _floor = math.floor
 
--- Cg also has round() and trunc()
-lg.floor, lg.ceil = lift(_floor), lift(math.ceil)
+-- This bit of floating-point hackery only works when the floating-point
+-- radix is two, but without a builtin round() in Lua we have no choice.
+
+local topbit = 1.0
+while true do
+	local t = topbit * 2
+	if t + 1 == t then break end
+	topbit = t
+end
+local function _round(x)
+	if not (_abs(x) < topbit) then return tointeger(x) end
+	if x > 0 then
+		return tointeger(x + topbit - topbit)
+	else
+		return tointeger(x - topbit + topbit)
+	end
+end
+
+-- Cg also has trunc()
+lg.floor, lg.ceil, lg.round = lift(_floor), lift(math.ceil), lift(_round)
 
 lg.frac = lift(function (x)
 	x = tonumber(x); local i = x - _floor(x)
@@ -320,6 +343,61 @@ lg.frac = lift(function (x)
 end)
 
 lg.modf = lift(math.modf)
+
+-- fmod, sqrt, exp, log
+
+local _sqrt, _log = math.sqrt, math.log
+
+-- Cg also has rsqrt()
+lg.fmod, lg.sqrt = lift(math.fmod), lift(_sqrt)
+lg.exp, lg.log = lift(math.exp), lift(_log)
+
+-- frexp, ldexp
+
+local log2 = _log(2)
+local _frexp =
+	-- on LuaJIT, the builtin math.frexp is slower than FFI
+	not try(function ()
+		return require 'jit'.status()
+	end) and math.frexp or
+	try(function ()
+		local ffi = require 'ffi'
+		ffi.cdef [[ double frexp(double, int *); ]]
+		local frexp, e = ffi.C.frexp, ffi.new 'int [1]'
+		return frexp and function (x)
+			local m = frexp(tonumber(x), e)
+			return m, e[0]
+		end
+	end) or
+	try(function () return require 'mathx'.frexp end) or
+	function (x)
+		x = tonumber(x)
+		if x + x == x or x ~= x then return x, 0 end
+		local e = _floor(_log(_abs(x)) / log2)
+		x = x / 2^e
+		if x >= 2 then x, e = x / 2, e + 1 end
+		return x / 2, e + 1
+	end
+
+local _ldexp =
+	math.ldexp or
+	try(function ()
+		local ffi = require 'ffi'
+		ffi.cdef [[ double ldexp(double, int); ]]
+		local ldexp = ffi.C.ldexp
+		return ldexp and function (m, e)
+			return ldexp(tonumber(m), _round(tonumber(e)))
+		end
+	end) or
+	try(function () return require 'mathx'.ldexp end) or
+	function (m, e)
+		m, e = tonumber(m), _round(tonumber(e))
+		if m + m == m or m ~= m then return m end
+		local halfe = _floor(e / 2)
+		return m * 2^halfe * 2^(e - halfe)
+	end
+
+lg.frexp, lg.ldexp = lift(_frexp), lift(_ldexp)
 
 -- max, min, clamp, saturate
 
@@ -348,14 +426,6 @@ end
 
 -- Cg calls these degrees() and radians()
 lg.deg, lg.rad = lift(math.deg), lift(math.rad)
-
--- fmod, sqrt, exp, log
-
-local _sqrt = math.sqrt
-
--- Cg also has rsqrt()
-lg.fmod, lg.sqrt = lift(math.fmod), lift(_sqrt)
-lg.exp, lg.log = lift(math.exp), lift(math.log)
 
 -- sin, cos, tan, sinh, cosh, tanh
 

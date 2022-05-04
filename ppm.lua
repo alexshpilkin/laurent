@@ -3,9 +3,10 @@ local ppm = setmetatable({__name = 'ppm'}, {__call = function (self, ...)
 end})
 ppm.__index = ppm
 
-local format = string.format
 local bt709 = require 'bt709'
-local quant, rgb = bt709.quant, bt709.rgb_
+
+local quant, rgb_ = bt709.quant, bt709.rgb_
+local format = string.format
 
 function ppm.open(file, width, height, options)
 	if width == nil then -- open{file, ...}
@@ -37,20 +38,18 @@ function ppm.open(file, width, height, options)
 	}, ppm)
 end
 
-function ppm:__call(...) self:putpx(...) end
+function ppm:__call(...) self:putxyz(...) end
 
-function ppm:putpx(x, y, z)
+function ppm:putxyz(...)
 	local file, maxval, i = self.file, self.maxval, self.i + 1
 
 	-- The PNM specifications say to limit ourselves to 70 chars/line,
 	-- but meh, the files are easier to inspect this way.
 
-	local r, g, b = rgb(x, y, z)
+	local c = quant(rgb_(...), 0, maxval)
 	file:write(format('%s%3d %3d %3d',
 	                  i > 1 and '  ' or '',
-	                  quant(r, 0, maxval),
-	                  quant(g, 0, maxval),
-	                  quant(b, 0, maxval)))
+	                  c.r, c.g, c.b))
 
 	if i == self.width then
 		file:write('\n')
