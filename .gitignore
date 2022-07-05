@@ -1,3 +1,4 @@
 *.hdr
 *.ppm
 _*.lua
+.direnv
