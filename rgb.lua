@@ -41,7 +41,7 @@ local function each(func, ...)
 	return unpack(results)
 end
 
-local function num(value)
+local function tod(value)
 	return type(value) == 'string' and tonumber(value) or value:get_d()
 end
 
@@ -83,13 +83,13 @@ function rgb.space(data, ...)
 	-- used that the results should not change if one is not.
 
 	if data.xr == nil then
-		local mpfr = require 'lmpfrlib'
+		local mpfr = require 'mpfr'
 		mpfr.set_default_prec(96)
 
-		local xr, yr, zr = each(mpfr.num, unpack(data.r))
-		local xg, yg, zg = each(mpfr.num, unpack(data.g))
-		local xb, yb, zb = each(mpfr.num, unpack(data.b))
-		local xw, yw, zw = each(mpfr.num, unpack(data.w))
+		local xr, yr, zr = each(mpfr.fr, unpack(data.r))
+		local xg, yg, zg = each(mpfr.fr, unpack(data.g))
+		local xb, yb, zb = each(mpfr.fr, unpack(data.b))
+		local xw, yw, zw = each(mpfr.fr, unpack(data.w))
 
 		-- The coordinates (chrominances) of the primaries are
 		-- projective, that is, up to an overall scaling for each
@@ -128,9 +128,9 @@ function rgb.space(data, ...)
 		data.xb, data.yb, data.zb = xb, yb, zb
 	end
 
-	local xyzr = number3(each(num, data.xr, data.yr, data.zr))
-	local xyzg = number3(each(num, data.xg, data.yg, data.zg))
-	local xyzb = number3(each(num, data.xb, data.yb, data.zb))
+	local xyzr = number3(each(tod, data.xr, data.yr, data.zr))
+	local xyzg = number3(each(tod, data.xg, data.yg, data.zg))
+	local xyzb = number3(each(tod, data.xb, data.yb, data.zb))
 
 	function space.xyz(...)
 		local c = number3(...)
@@ -139,12 +139,12 @@ function rgb.space(data, ...)
 	local xyz = space.xyz
 
 	if data.rx == nil then
-		local mpfr = require 'lmpfrlib'
+		local mpfr = require 'mpfr'
 		mpfr.set_default_prec(96)
 
-		local xyz_rgb = {{each(mpfr.num, data.xr, data.xg, data.xb)},
-		                 {each(mpfr.num, data.yr, data.yg, data.yb)},
-		                 {each(mpfr.num, data.zr, data.zg, data.zb)}}
+		local xyz_rgb = {{each(mpfr.fr, data.xr, data.xg, data.xb)},
+		                 {each(mpfr.fr, data.yr, data.yg, data.yb)},
+		                 {each(mpfr.fr, data.zr, data.zg, data.zb)}}
 
 		-- The transformation in the other direction is described
 		-- by the inverse matrix.  (Duh.)
@@ -154,9 +154,9 @@ function rgb.space(data, ...)
 		data.rz, data.gz, data.bz = solve(xyz_rgb, {0, 0, 1})
 	end
 
-	local rgbx = number3(each(num, data.rx, data.gx, data.bx))
-	local rgby = number3(each(num, data.ry, data.gy, data.by))
-	local rgbz = number3(each(num, data.rz, data.gz, data.bz))
+	local rgbx = number3(each(tod, data.rx, data.gx, data.bx))
+	local rgby = number3(each(tod, data.ry, data.gy, data.by))
+	local rgbz = number3(each(tod, data.rz, data.gz, data.bz))
 
 	function space.rgb(...)
 		local c = number3(...)
@@ -175,29 +175,29 @@ function rgb.space(data, ...)
 	-- convention.
 
 	if data.gamma == nil then
-		local mpfr = require 'lmpfrlib'
+		local mpfr = require 'mpfr'
 		mpfr.set_default_prec(96)
-		data.gamma = 1 / mpfr.num(assert(data.igamma))
+		data.gamma = 1 / mpfr.fr(assert(data.igamma))
 	elseif data.igamma == nil then
-		local mpfr = require 'lmpfrlib'
+		local mpfr = require 'mpfr'
 		mpfr.set_default_prec(96)
-		data.igamma = 1 / mpfr.num(assert(data.gamma))
+		data.igamma = 1 / mpfr.fr(assert(data.gamma))
 	end
 
-	local gamma, igamma = each(num, data.gamma, data.igamma)
-	local slope, offset = each(num, data.slope, data.offset)
+	local gamma, igamma = each(tod, data.gamma, data.igamma)
+	local slope, offset = each(tod, data.slope, data.offset)
 
 	if data.thresh == nil then
-		local mpfr = require 'lmpfrlib'
+		local mpfr = require 'mpfr'
 		mpfr.set_default_prec(96)
-		data.thresh = mpfr.num(data.slope) * mpfr.num(assert(data.ithresh))
+		data.thresh = mpfr.fr(data.slope) * mpfr.fr(assert(data.ithresh))
 	elseif data.ithresh == nil then
-		local mpfr = require 'lmpfrlib'
+		local mpfr = require 'mpfr'
 		mpfr.set_default_prec(96)
-		data.ithresh = mpfr.num(assert(data.thresh)) / mpfr.num(data.slope)
+		data.ithresh = mpfr.fr(assert(data.thresh)) / mpfr.fr(data.slope)
 	end
 
-	local thresh, ithresh = each(num, data.thresh, data.ithresh)
+	local thresh, ithresh = each(tod, data.thresh, data.ithresh)
 
 	-- The general form of a power-law curve that passes through (1,1)
 	-- is  f(x) = ((x + offset) / (1 + offset))^gamma.
@@ -264,11 +264,11 @@ function rgb.space(data, ...)
 			-- numbers after reading would be the same.  This
 			-- would work but is a bit distasteful.)
 
-			local mpfr = require 'lmpfrlib'
-			local x = mpfr.num(value); mpfr.prec_round(x, 53)
+			local mpfr = require 'mpfr'
+			local x = mpfr.fr(value); x:prec_round(53)
 			for p = 16, 1000 do -- usually <= 18
-				local s = value:snprintf(p + 8, "% ."..p.."Re")
-				local y = mpfr.num(s); mpfr.prec_round(y, 53)
+				local s = value:format(' .*e', p)
+				local y = mpfr.fr(s); y:prec_round(53)
 				if x == y then value = s; break end
 			end
 		end

@@ -122,7 +122,7 @@ if not ok then data = {} end
 setmetatable(data, {__index = basic})
 
 if data.thresh == nil then
-	local mpfr = require 'lmpfrlib'
+	local mpfr = require 'mpfr'
 	mpfr.set_default_prec(96)
 
 	-- This code chooses to prefer continuity to strict compliance, so
@@ -133,10 +133,10 @@ if data.thresh == nil then
 	-- two thousand iterations to converge, but I see no real
 	-- alternative here.  It is completely straightforward, though.
 
-	local gamma, offset = mpfr.num(data.gamma), mpfr.num(data.offset)
-	local slope, igamma = mpfr.num(data.slope), 1 / gamma
+	local gamma, offset = mpfr.fr(data.gamma), mpfr.fr(data.offset)
+	local slope, igamma = mpfr.fr(data.slope), 1 / gamma
 
-	local thresh, eps = 1, mpfr.num(2)^-64
+	local thresh, eps = 1, mpfr.fr(2)^-64
 	while true do
 		local t = (1 + offset) * (thresh / slope)^igamma - offset
 		if ((t - thresh) / t):abs() < eps then break end

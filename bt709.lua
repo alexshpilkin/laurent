@@ -27,7 +27,7 @@ if not ok then data = {} end
 setmetatable(data, {__index = basic})
 
 if data.xr == nil then -- will need white point
-	local mpfr = require 'lmpfrlib'
+	local mpfr = require 'mpfr'
 	mpfr.set_default_prec(96)
 
 	local function rows(filename)
@@ -56,14 +56,14 @@ if data.xr == nil then -- will need white point
 
 	local ob = ob1931()
 	local ill; repeat ill = illstd() until ill.nm == ob.nm
-	local xw, yw, zw = mpfr.num(0), mpfr.num(0), mpfr.num(0) -- 0.3127 C, 0.3290 C, 0.3583 C
-	local d65, t = mpfr.num(), mpfr.num()
+	local xw, yw, zw = mpfr.fr(0), mpfr.fr(0), mpfr.fr(0) -- 0.3127 C, 0.3290 C, 0.3583 C
+	local d65, t = mpfr.fr(), mpfr.fr()
 	while ob do
 		assert(ill.nm == ob.nm)
-		d65:set_str(ill.d65, 10)
-		t:set_str(ob.xbar, 10) t:mul(t, d65) xw:add(xw, t)
-		t:set_str(ob.ybar, 10) t:mul(t, d65) yw:add(yw, t)
-		t:set_str(ob.zbar, 10) t:mul(t, d65) zw:add(zw, t)
+		d65:set(ill.d65)
+		t:set(ob.xbar) t:mul(d65, t) xw:add(t, xw)
+		t:set(ob.ybar) t:mul(d65, t) yw:add(t, yw)
+		t:set(ob.zbar) t:mul(d65, t) zw:add(t, zw)
 		ob, ill = ob1931(), illstd()
 	end
 
@@ -83,7 +83,7 @@ if data.xr == nil then -- will need white point
 end
 
 if data.thresh == nil then
-	local mpfr = require 'lmpfrlib'
+	local mpfr = require 'mpfr'
 	mpfr.set_default_prec(96) -- overkill
 
 	-- Per UHDTV, the 1/gamma and slope values are fixed and the rest
@@ -92,10 +92,10 @@ if data.thresh == nil then
 	-- expression for these values, but a simple fixed-point iteration
 	-- suffices and converges in a couple dozen iterations.
 
-	local igamma, slope = mpfr.num(data.igamma), mpfr.num(data.slope)
+	local igamma, slope = mpfr.fr(data.igamma), mpfr.fr(data.slope)
 	local expt = 1 / (1 - igamma)
 
-	local ithresh, eps = 1, mpfr.num(2)^-64
+	local ithresh, eps = 1, mpfr.fr(2)^-64
 	while true do
 		local t = ((1 - igamma) * ithresh + igamma / slope)^expt
 		if ((t - ithresh) / t):abs() <= eps then break end
