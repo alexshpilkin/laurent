@@ -9,8 +9,8 @@
 -- intention was for sRGB to be a simple modification of the BT.709 (HDTV)
 -- colour space, so see the discussion and references in bt709.lua as well.
 
--- The original intention might have been that, but prodigious if well
--- motivated overspecification, incorrect readings by authors of later
+-- The original intention might have been that, but prodigious if well-
+-- intentioned overspecification, incorrect readings by authors of later
 -- extensions, and a widely implemented mistake in the original W3C draft
 -- mean that sRGB is something of a monster.  Long story short, it is not
 -- an RGB space in the conventional sense, defined by a set of primaries,

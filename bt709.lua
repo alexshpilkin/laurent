@@ -3,7 +3,7 @@
 -- BT.2020 (UHDTV) and some general remarks in Rec. ITU-T H.273 (CICP).
 
 -- The only tricky part is that the white point is both defined as standard
--- illuminant D65 and has its chromaticity specified.  I assume that the
+-- illuminant D65 and said to have specific chromaticities.  I assume that the
 -- former definition takes precedence and recompute the precise coordinates
 -- from the spectra tabulated in ISO 11664-1:2007 (which defines D65) and
 -- ISO 11664-2:2007 (which defines the CIE 1931 reference observer).

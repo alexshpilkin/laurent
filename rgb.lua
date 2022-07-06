@@ -1,4 +1,4 @@
--- The impressive stash of yak shavings here is rederives colour space
+-- The impressive stash of yak shavings here rederives colour space
 -- transformations from their defining parameters to the precision
 -- required for double-precision floating point rather than the four-digit
 -- precision used in the original specifications.
