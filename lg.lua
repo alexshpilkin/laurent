@@ -115,77 +115,86 @@ end
 -- lifted functions should only be used at a fixed number of arities, so
 -- avoid max(unpack( ... )) and similar
 
-function lift(f)
-	local lifts = setdefault({}, function (k)
-		local args, arg1s, arg2s, arg3s, arg4s = {}, {}, {}, {}, {}
-		local shifts = {}
+local lifts = setdefault({}, function (k)
+	local args, arg1s, arg2s, arg3s, arg4s = {}, {}, {}, {}, {}
+	local shifts = {}
 
-		for i = 1, k do
-			args[i] = 'a'..i..'v'
-			arg1s[i], arg2s[i] = 'a'..i..'1', 'a'..i..'2'
-			arg3s[i], arg4s[i] = 'a'..i..'3', 'a'..i..'4'
-			shifts[i] = gsub([[
-				local @n, @1, @2, @3, @4 = shift(@v, 0)
-				assert(@n, "numbers expected")
-				if @n == 1 then @n, @2, @3, @4 = n, @1, @1, @1 end
-				if @n >= 1 and n == 1 then n = @n end
-				assert(n == @n, "component counts do not match")
-			]], '@', 'a'..i)
-		end
+	for i = 1, k do
+		args[i] = 'a'..i..'v'
+		arg1s[i], arg2s[i] = 'a'..i..'1', 'a'..i..'2'
+		arg3s[i], arg4s[i] = 'a'..i..'3', 'a'..i..'4'
+		shifts[i] = gsub([[
+			local @n, @1, @2, @3, @4 = shift(@v, 0)
+			assert(@n, "numbers expected")
+			if @n == 1 then @n, @2, @3, @4 = n, @1, @1, @1 end
+			if @n >= 1 and n == 1 then n = @n end
+			assert(n == @n, "component counts do not match")
+		]], '@', 'a'..i)
+	end
 
-		return loadstring([[
-			local f, assert, nid, shift, _number2, _number3, _number4 = ...
-			return function (]]..concat(args, ', ')..[[)
-				local n = 1
-				]]..concat(shifts, '\n')..[[
-				local r, u1, v1 = nid(f(]]..concat(arg1s, ', ')..[[))
-				if n == 1 then
-					if r == 0 then return end
-					if r == 1 then return u1 end
-					return u1, v1
-				end
-				local r2, u2, v2 = nid(f(]]..concat(arg2s, ', ')..[[))
-				assert(r == r2)
-				if n == 2 then
-					if r == 0 then return end
-					local u = _number2(u1, u2)
-					if r == 1 then return u end
-					return u, _number2(v1, v2)
-				end
-				local r3, u3, v3 = nid(f(]]..concat(arg3s, ', ')..[[))
-				assert(r == r3)
-				if n == 3 then
-					if r == 0 then return end
-					local u = _number3(u1, u2, u3)
-					if r == 1 then return u end
-					return u, _number3(v1, v2, v3)
-				end
-				local r4, u4, v4 = nid(f(]]..concat(arg4s, ', ')..[[))
-				assert(r == r4)
+	return loadstring([[
+		local assert, nid, shift, _number2, _number3, _number4 = ...
+		return function (f, ]]..concat(args, ', ')..[[)
+			local n = 1
+			]]..concat(shifts, '\n')..[[
+			local r, u1, v1 = nid(f(]]..concat(arg1s, ', ')..[[))
+			if n == 1 then
 				if r == 0 then return end
-				local u = _number4(u1, u2, u3, u4)
-				if r == 1 then return u end
-				return u, _number4(v1, v2, v3, v4)
+				if r == 1 then return u1 end
+				return u1, v1
 			end
-		]])(f, assert, nid, shift, _number2, _number3, _number4)
-	end)
-	return function (...)
-		local r, u, v = nid(lifts[select('#', ...)](...))
+			local r2, u2, v2 = nid(f(]]..concat(arg2s, ', ')..[[))
+			assert(r == r2)
+			if n == 2 then
+				if r == 0 then return end
+				local u = _number2(u1, u2)
+				if r == 1 then return u end
+				return u, _number2(v1, v2)
+			end
+			local r3, u3, v3 = nid(f(]]..concat(arg3s, ', ')..[[))
+			assert(r == r3)
+			if n == 3 then
+				if r == 0 then return end
+				local u = _number3(u1, u2, u3)
+				if r == 1 then return u end
+				return u, _number3(v1, v2, v3)
+			end
+			local r4, u4, v4 = nid(f(]]..concat(arg4s, ', ')..[[))
+			assert(r == r4)
+			if r == 0 then return end
+			local u = _number4(u1, u2, u3, u4)
+			if r == 1 then return u end
+			return u, _number4(v1, v2, v3, v4)
+		end
+	]])(assert, nid, shift, _number2, _number3, _number4)
+end)
+
+function lift(f, ...)
+	local function lifted(...)
+		local r, u, v = nid(lifts[select('#', ...)](f, ...))
 		if r == 0 then return end
 		if r == 1 then return u end
 		return u, v
 	end
+	if select('#', ...) ~= 0 then return lifted(...) end
+	return lifted
 end
 local lift = lift
 
-function hlift(f)
-	return function (v)
-		local n, v1, v2, v3, v4 = shift(v, 0)
-		local x = v1; if n == 1 then return x end
-		x = f(x, v2); if n == 2 then return x end
-		x = f(x, v3); if n == 3 then return x end
-		x = f(x, v4); return x
+function hlift1(f, v)
+	local n, v1, v2, v3, v4 = shift(v, 0)
+	local x = v1; if n == 1 then return x end
+	x = f(x, v2); if n == 2 then return x end
+	x = f(x, v3); if n == 3 then return x end
+	x = f(x, v4); return x
+end
+
+function hlift(f, ...)
+	local function lifted(v)
+		return (hlift1(f, v))
 	end
+	if select('#', ...) ~= 0 then return (lifted(...)) end
+	return lifted
 end
 local hlift = hlift
 
