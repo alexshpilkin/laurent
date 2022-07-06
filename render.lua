@@ -25,12 +25,17 @@ else
 	function trace() end
 end
 
+local img = {}
+function img.value(_self, x, y)
+	return (srgb(x, y, 0.25))
+end
+
 local pic = assert(fmt(out, fmtopts))
 local width, height = pic.width, pic.height
 for j = height - 1, 0, -1 do
 	trace('%d / %d lines', height-j-1, height)
 	for i = 0, width - 1 do
-		pic(srgb(i / (width - 1), j / (height - 1), 0.25))
+		pic(img:value(i / (width - 1), j / (height - 1)))
 	end
 	trace('\r\27[K')
 end
