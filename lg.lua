@@ -86,9 +86,9 @@ function lg.number4(_1, _2, _3, _4)
 	return (_number4(_1, _2, _3, _4))
 end
 
-function lg.tonumbers(v)
-	local n, _1, _2, _3, _4 = shift(v, 0)
-	assert(n, "numbers expected")
+function lg.tonumbers(_1, _2, _3, _4, ...)
+	local n; n, _1, _2, _3, _4 = shift(_1, shift(_2, shift(_3, shift(_4, 0))))
+	assert(n and n <= 4 and select('#', ...) == 0, "numbers expected")
 	if n == 1 then return _1 end
 	if n == 2 then return (_number2(_1, _2)) end
 	if n == 3 then return (_number3(_1, _2, _3)) end
