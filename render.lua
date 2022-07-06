@@ -2,7 +2,7 @@ local isatty = require 'isatty'
 local options = require 'options'
 local srgb = require 'srgb'
 
-local opts, args = options 'f:o:'
+local opts, args = options '+f:o:v'
 assert(#args == 0)
 local fmtsubs = options.sub(options.all('-f', opts))
 local fmt, fmtopts = require(options.last('', fmtsubs) or 'xyze'), {
@@ -18,7 +18,7 @@ elseif out == '-' then
 end
 
 local trace
-if isatty(io.stderr) then
+if options.last('v', opts) and isatty(io.stderr) then
 	local format, stderr = string.format, io.stderr
 	function trace(...) return stderr:write(format(...)) end
 else
