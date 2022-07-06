@@ -29,18 +29,20 @@
 -- Infuriatingly, pfstools cannot handle XYZE-flavoured Radiance images,
 -- only RGBE ones.  ImageMagick and Luminance HDR do handle both.
 
-local xyze = setmetatable({__name = 'xyze'}, {__call = function (self, ...)
-	return self.open(...)
-end})
-xyze.__index = xyze
-
 local lg = require 'lg'
 
+local assert, pcall, setmetatable, tonumber = assert, pcall, setmetatable, tonumber
+local open, output = io.open, io.output
 local clamp, floor, frexp, ldexp, number3 = lg.clamp, lg.floor, lg.frexp, lg.ldexp, lg.number3
 local max = math.max
 local char, format = string.char, string.format
 
-function xyze.open(file, width, height, options)
+local _ENV = {__name = 'xyze'}
+if setfenv then setfenv(1, _ENV) end
+
+__index = _ENV
+
+setmetatable(_ENV, {__call = function (self, file, width, height, options)
 	if width == nil then -- open{file, ...}
 		options, file = file, file[1]
 	elseif height == nil then -- open(file, {...})
@@ -51,10 +53,10 @@ function xyze.open(file, width, height, options)
 	end
 
 	if file == nil then
-		file = io.output() -- pray it is in the right mode
+		file = output() -- pray it is in the right mode
 	elseif not pcall(function () assert(file.write) end) then
 		local err
-		file, err = io.open(file, 'wb')
+		file, err = open(file, 'wb')
 		if not file then return nil, err end
 	end
 	width  = assert(tonumber(options.width or width))
@@ -68,8 +70,8 @@ function xyze.open(file, width, height, options)
 	return setmetatable({
 		file = file, width = width, height = height,
 		k = 0, n = width * height
-	}, xyze)
-end
+	}, self)
+end})
 
 local m = ldexp(511 / 512, 127) -- maximum representable value (center)
 
@@ -89,9 +91,9 @@ local function encode(...)
 	return (char(c.x, c.y, c.z, e))
 end
 
-function xyze:__call(...) self:putxyz(...) end
+function __call(self, ...) self:putxyz(...) end
 
-function xyze:putxyz(...)
+function putxyz(self, ...)
 	local file, k = self.file, self.k + 1
 	file:write(encode(...))
 
@@ -102,4 +104,4 @@ function xyze:putxyz(...)
 	self.k = k
 end
 
-return xyze
+return _ENV

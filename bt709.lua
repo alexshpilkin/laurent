@@ -8,6 +8,9 @@
 -- from the spectra tabulated in ISO 11664-1:2007 (which defines D65) and
 -- ISO 11664-2:2007 (which defines the CIE 1931 reference observer).
 
+local assert, pcall, require, setmetatable = assert, pcall, require, setmetatable
+local open = io.open
+local gmatch = string.gmatch
 local insert = table.insert
 
 local basic = {
@@ -31,11 +34,11 @@ if data.xr == nil then -- will need white point
 	mpfr.set_default_prec(96)
 
 	local function rows(filename)
-		local file, err = io.open(filename)
+		local file, err = open(filename)
 		if not file then return nil, err end
 
 		local lines, head = file:lines(), {}
-		for cell in string.gmatch(lines(), '[^\t\n]+') do
+		for cell in gmatch(lines(), '[^\t\n]+') do
 			insert(head, cell)
 		end
 
@@ -44,7 +47,7 @@ if data.xr == nil then -- will need white point
 			if not line then return nil end
 
 			local i, row = 1, {}
-			for cell in string.gmatch(line, '[^\t\n]+') do
+			for cell in gmatch(line, '[^\t\n]+') do
 				row[head[i]] = cell; i = i + 1
 			end
 			return row

@@ -32,6 +32,8 @@
 -- [4]: https://entropymine.com/imageworsener/srgbformula/
 -- [5]: https://github.com/w3c/wcag/issues/360
 
+local pcall, require, setmetatable = pcall, require, setmetatable
+
 local basic = {
 	-- sRGB table 1, referencing HDTV sec. 1
 	-- r = {'0.640',  '0.330',  '0.030'},

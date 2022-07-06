@@ -1,14 +1,16 @@
-local ppm = setmetatable({__name = 'ppm'}, {__call = function (self, ...)
-	return self.open(...)
-end})
-ppm.__index = ppm
-
 local bt709 = require 'bt709'
 
+local assert, pcall, setmetatable, tonumber = assert, pcall, setmetatable, tonumber
+local open, output = io.open, io.output
 local quant, rgb_ = bt709.quant, bt709.rgb_
 local format = string.format
 
-function ppm.open(file, width, height, options)
+local _ENV = {}
+if setfenv then setfenv(1, _ENV) end
+
+__index = _ENV
+
+setmetatable(_ENV, {__call = function (self, file, width, height, options)
 	if width == nil then -- open{file, ...}
 		options, file = file, file[1]
 	elseif height == nil then -- open(file, {...})
@@ -19,10 +21,10 @@ function ppm.open(file, width, height, options)
 	end
 
 	if file == nil then
-		file = io.output() -- pray it is in the right mode
+		file = output() -- pray it is in the right mode
 	elseif not pcall(function () assert(file.write) end) then
 		local err
-		file, err = io.open(file, 'wb')
+		file, err = open(file, 'wb')
 		if not file then return nil, err end
 	end
 	width  = assert(tonumber(options.width or width))
@@ -35,12 +37,12 @@ function ppm.open(file, width, height, options)
 	return setmetatable({
 		file = file, width = width, height = height, maxval = maxval,
 		i = 0, j = 0
-	}, ppm)
-end
+	}, self)
+end})
 
-function ppm:__call(...) self:putxyz(...) end
+function __call(self, ...) self:putxyz(...) end
 
-function ppm:putxyz(...)
+function putxyz(self, ...)
 	local file, maxval, i = self.file, self.maxval, self.i + 1
 
 	-- The PNM specifications say to limit ourselves to 70 chars/line,
@@ -63,4 +65,4 @@ function ppm:putxyz(...)
 	self.i = i
 end
 
-return ppm
+return _ENV

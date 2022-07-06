@@ -1,5 +1,3 @@
-local lg = {}
-
 -- Almost entirely compatible with Cg[1] and its doppelgaenger HLSL[2],
 -- quite a bit so with GLSL[3].
 
@@ -7,12 +5,18 @@ local lg = {}
 -- [2]: https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl
 -- [3]: https://github.com/KhronosGroup/OpenGL-Refpages
 
-local assert, select, tonumber, type = assert, select, tonumber, type
+local math = math
+
+local assert, pcall, require, select, setmetatable, tonumber, type = assert, pcall, require, select, setmetatable, tonumber, type
+local debug_getmetatable, debug_setmetatable = debug.getmetatable, debug.setmetatable
 local find, gsub, substr = string.find, string.gsub, string.sub
 local concat, insert = table.concat, table.insert
 
 local loadstring = loadstring or load
 local tointeger = math.tointeger or function (x) return x end
+
+local _ENV = {}
+if setfenv then setfenv(1, _ENV) end
 
 local function nope() end
 local function id(...) return ... end
@@ -65,28 +69,28 @@ end
 
 local _number2, _number3, _number4
 
-function lg.number2(_1, _2)
+function number2(_1, _2)
 	local n; n, _1, _2 = shift(_1, shift(_2, 0))
 	if n == 1 then n, _2 = 2, _1 end
 	assert(n == 2, "wrong component count")
 	return (_number2(_1, _2))
 end
 
-function lg.number3(_1, _2, _3)
+function number3(_1, _2, _3)
 	local n; n, _1, _2, _3 = shift(_1, shift(_2, shift(_3, 0)))
 	if n == 1 then n, _2, _3 = 3, _1, _1 end
 	assert(n == 3, "wrong component count")
 	return (_number3(_1, _2, _3))
 end
 
-function lg.number4(_1, _2, _3, _4)
+function number4(_1, _2, _3, _4)
 	local n; n, _1, _2, _3, _4 = shift(_1, shift(_2, shift(_3, shift(_4, 0))))
 	if n == 1 then n, _2, _3, _4 = 4, _1, _1, _1 end
 	assert(n == 4, "wrong component count")
 	return (_number4(_1, _2, _3, _4))
 end
 
-function lg.tonumbers(_1, _2, _3, _4, ...)
+function tonumbers(_1, _2, _3, _4, ...)
 	local n; n, _1, _2, _3, _4 = shift(_1, shift(_2, shift(_3, shift(_4, 0))))
 	assert(n and n <= 4 and select('#', ...) == 0, "numbers expected")
 	if n == 1 then return _1 end
@@ -94,7 +98,7 @@ function lg.tonumbers(_1, _2, _3, _4, ...)
 	if n == 3 then return (_number3(_1, _2, _3)) end
 	return (_number4(_1, _2, _3, _4))
 end
-local tonumbers = lg.tonumbers
+local tonumbers = tonumbers
 
 -- lifting
 
@@ -111,7 +115,7 @@ end
 -- lifted functions should only be used at a fixed number of arities, so
 -- avoid max(unpack( ... )) and similar
 
-function lg.lift(f)
+function lift(f)
 	local lifts = setdefault({}, function (k)
 		local args, arg1s, arg2s, arg3s, arg4s = {}, {}, {}, {}, {}
 		local shifts = {}
@@ -172,9 +176,9 @@ function lg.lift(f)
 		return u, v
 	end
 end
-local lift = lg.lift
+local lift = lift
 
-function lg.hlift(f)
+function hlift(f)
 	return function (v)
 		local n, v1, v2, v3, v4 = shift(v, 0)
 		local x = v1; if n == 1 then return x end
@@ -183,7 +187,7 @@ function lg.hlift(f)
 		x = f(x, v4); return x
 	end
 end
-local hlift = lg.hlift
+local hlift = hlift
 
 -- operators
 
@@ -192,13 +196,13 @@ local function tostring(v)
 	return 'number' .. n .. '(' .. concat({_1, _2, _3, _4}, ', ') .. ')'
 end
 
-lg.add = lift(function (x, y) return x + y end)
-lg.sub = lift(function (x, y) return x - y end)
-lg.mul = lift(function (x, y) return x * y end) -- Cg also has matrix mul()
-lg.div = lift(function (x, y) return x / y end)
-lg.mod = lift(function (x, y) return x % y end)
-lg.pow = lift(function (x, y) return x ^ y end)
-local sub, mul, div = lg.sub, lg.mul, lg.div
+add = lift(function (x, y) return x + y end)
+sub = lift(function (x, y) return x - y end)
+mul = lift(function (x, y) return x * y end) -- Cg also has matrix mul()
+div = lift(function (x, y) return x / y end)
+mod = lift(function (x, y) return x % y end)
+pow = lift(function (x, y) return x ^ y end)
+local sub, mul, div = sub, mul, div
 
 local unm = {
 	nil,
@@ -286,18 +290,18 @@ local function makemetatable(n)
 		__newindex = function (self, key, value)
 			assert(newindices[key])(self, value)
 		end,
-		__add = lg.add, __sub = lg.sub, __mul = lg.mul,
-		__div = lg.div, __mod = lg.mod, __pow = lg.pow,
+		__add = add, __sub = sub, __mul = mul,
+		__div = div, __mod = mod, __pow = pow,
 		__unm = unm[n], __eq = eq[n], -- Cg uses masks
 	}
 end
 
-if not (debug.getmetatable(0) and rawget(debug.getmetatable(0), '__index')) then
-	debug.setmetatable(0, {__index = makemetatable(1).__index})
+if not (debug_getmetatable(0) and rawget(debug_getmetatable(0), '__index')) then
+	debug_setmetatable(0, {__index = makemetatable(1).__index})
 end
 local meta2, meta3, meta4 = makemetatable(2), makemetatable(3), makemetatable(4)
 
-if jit then
+if try(function () return require 'jit'.status() end) then
 	local ffi = require 'ffi'
 	_number2 = ffi.metatype('struct { double _1, _2; }', meta2)
 	_number3 = ffi.metatype('struct { double _1, _2, _3; }', meta3)
@@ -321,7 +325,7 @@ end
 local _abs = math.abs
 
 -- Cg also has sign(), C99 has copysign()
-lg.abs = lift(_abs)
+abs = lift(_abs)
 
 -- floor, ceil, round, frac, modf
 
@@ -346,22 +350,22 @@ local function _round(x)
 end
 
 -- Cg also has trunc()
-lg.floor, lg.ceil, lg.round = lift(_floor), lift(math.ceil), lift(_round)
+floor, ceil, round = lift(_floor), lift(math.ceil), lift(_round)
 
-lg.frac = lift(function (x)
+frac = lift(function (x)
 	x = tonumber(x); local i = x - _floor(x)
 	return x ~= i and i or 0 -- inf and -inf to zero, nan to nan
 end)
 
-lg.modf = lift(math.modf)
+modf = lift(math.modf)
 
 -- fmod, sqrt, exp, log
 
 local _sqrt, _log = math.sqrt, math.log
 
 -- Cg also has rsqrt()
-lg.fmod, lg.sqrt = lift(math.fmod), lift(_sqrt)
-lg.exp, lg.log = lift(math.exp), lift(_log)
+fmod, sqrt = lift(math.fmod), lift(_sqrt)
+exp, log = lift(math.exp), lift(_log)
 
 -- frexp, ldexp
 
@@ -408,29 +412,29 @@ local _ldexp =
 		return m * 2^halfe * 2^(e - halfe)
 	end
 
-lg.frexp, lg.ldexp = lift(_frexp), lift(_ldexp)
+frexp, ldexp = lift(_frexp), lift(_ldexp)
 
 -- max, min, clamp, saturate
 
 local _max, _min = math.max, math.min
 
-lg.max, lg.min = lift(_max), lift(_min)
-local max, min = lg.max, lg.min
+max, min = lift(_max), lift(_min)
+local max, min = max, min
 
 -- on x86, max(0, -0) is -0 but max(-0, 0) is 0
-function lg.clamp(u, v, w) return (min(max(u, v), w)) end
-local clamp = lg.clamp
+function clamp(u, v, w) return (min(max(u, v), w)) end
+local clamp = clamp
 
-function lg.saturate(v) return (clamp(v, 0, 1)) end
-local saturate = lg.saturate
+function saturate(v) return (clamp(v, 0, 1)) end
+local saturate = saturate
 
 -- lerp, step, smoothstep
 
-function lg.lerp(u, v, t) return mul(sub(1, t), u) + mul(t, v) end
+function lerp(u, v, t) return mul(sub(1, t), u) + mul(t, v) end
 
-lg.step = lift(function (e, x) return e <= x and 1 or 0 end)
+step = lift(function (e, x) return e <= x and 1 or 0 end)
 
-function lg.smoothstep(u, v, w)
+function smoothstep(u, v, w)
 	local x = saturate(sub(w, u) / sub(v, u))
 	return x * x * (3 - 2 * x)
 end
@@ -438,35 +442,35 @@ end
 -- deg, rad
 
 -- Cg calls these degrees() and radians()
-lg.deg, lg.rad = lift(math.deg), lift(math.rad)
+deg, rad = lift(math.deg), lift(math.rad)
 
 -- sin, cos, tan, sinh, cosh, tanh
 
-lg.sin, lg.cos, lg.tan = lift(math.sin), lift(math.cos), lift(math.tan)
+sin, cos, tan = lift(math.sin), lift(math.cos), lift(math.tan)
 
-lg.sinh = math.sinh and lift(math.sinh)
-lg.cosh = math.cosh and lift(math.cosh)
-lg.tanh = math.tanh and lift(math.tanh)
+sinh = math.sinh and lift(math.sinh)
+cosh = math.cosh and lift(math.cosh)
+tanh = math.tanh and lift(math.tanh)
 
 -- asin, acos, atan, atan2
 
-lg.asin, lg.acos  = lift(math.asin), lift(math.acos)
-lg.atan, lg.atan2 = lift(math.atan), lift(math.atan2)
+asin, acos  = lift(math.asin), lift(math.acos)
+atan, atan2 = lift(math.atan), lift(math.atan2)
 
 -- hadd, hmul, hmin, hmax
 
-lg.hadd = hlift(function (x, y) return x + y end)
-lg.hmul = hlift(function (x, y) return x * y end)
-local hadd = lg.hadd
+hadd = hlift(function (x, y) return x + y end)
+hmul = hlift(function (x, y) return x * y end)
+local hadd = hadd
 
-lg.hmin, lg.hmax = hlift(_min), hlift(_max)
+hmin, hmax = hlift(_min), hlift(_max)
 
 -- dot, cross, length, distance, normalize
 
-function lg.dot(u, v) return (hadd(mul(u, v))) end
-local dot = lg.dot
+function dot(u, v) return (hadd(mul(u, v))) end
+local dot = dot
 
-function lg.cross(u, v) -- Cg only has the three-dimensional version
+function cross(u, v) -- Cg only has the three-dimensional version
 	local n, u1, v1, u2, v2, u3, v3, u4, v4 = conform(u, v)
 	assert(n ~= 1)
 	local w3 = u1 * v2 - v1 * u2
@@ -477,31 +481,31 @@ function lg.cross(u, v) -- Cg only has the three-dimensional version
 	return (_number4(w1, w2, w3, w4))
 end
 
-function lg.length(v) return (_sqrt(dot(v, v))) end
-local length = lg.length
+function length(v) return (_sqrt(dot(v, v))) end
+local length = length
 
-function lg.distance(u, v) return (length(sub(v, u))) end
+function distance(u, v) return (length(sub(v, u))) end
 
-function lg.normalize(v) return (div(v, length(v))) end
+function normalize(v) return (div(v, length(v))) end
 
 -- faceforward, reflect, refract, lit
 
-function lg.faceforward(n, i, ng)
+function faceforward(n, i, ng)
 	n = tonumbers(n); return dot(i, ng) < 0 and n or -n
 end
 
-function lg.reflect(i, n) return i - mul(2 * dot(n, i), n) end
+function reflect(i, n) return i - mul(2 * dot(n, i), n) end
 
-function lg.refract(i, n, eta)
+function refract(i, n, eta)
 	local cosi = dot(-i, n)
 	local cos2t = 1 - eta * eta * (1 - cosi * cosi)
 	if cos2t < 0 then return nil end
 	return mul(eta, i) + mul(eta * cosi - _sqrt(cos2t), n)
 end
 
-function lg.lit(ndotl, ndoth, m)
+function lit(ndotl, ndoth, m)
 	local specular = ndotl > 0 and max(0, ndoth)^m or 0
 	return (_number4(1, max(0, ndotl), specular, 1))
 end
 
-return lg
+return _ENV
