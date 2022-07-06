@@ -174,6 +174,17 @@ function lg.lift(f)
 end
 local lift = lg.lift
 
+function lg.hlift(f)
+	return function (v)
+		local n, v1, v2, v3, v4 = shift(v, 0)
+		local x = v1; if n == 1 then return x end
+		x = f(x, v2); if n == 2 then return x end
+		x = f(x, v3); if n == 3 then return x end
+		x = f(x, v4); return x
+	end
+end
+local hlift = lg.hlift
+
 -- operators
 
 local function tostring(v)
@@ -401,7 +412,9 @@ lg.frexp, lg.ldexp = lift(_frexp), lift(_ldexp)
 
 -- max, min, clamp, saturate
 
-lg.max, lg.min = lift(math.max), lift(math.min)
+local _max, _min = math.max, math.min
+
+lg.max, lg.min = lift(_max), lift(_min)
 local max, min = lg.max, lg.min
 
 -- on x86, max(0, -0) is -0 but max(-0, 0) is 0
@@ -440,15 +453,17 @@ lg.tanh = math.tanh and lift(math.tanh)
 lg.asin, lg.acos  = lift(math.asin), lift(math.acos)
 lg.atan, lg.atan2 = lift(math.atan), lift(math.atan2)
 
+-- hadd, hmul, hmin, hmax
+
+lg.hadd = hlift(function (x, y) return x + y end)
+lg.hmul = hlift(function (x, y) return x * y end)
+local hadd = lg.hadd
+
+lg.hmin, lg.hmax = hlift(_min), hlift(_max)
+
 -- dot, cross, length, distance, normalize
 
-function lg.dot(u, v)
-	local n, u1, v1, u2, v2, u3, v3, u4, v4 = conform(u, v)
-	local x = u1 * v1; if n == 1 then return x end
-	x =   x + u2 * v2; if n == 2 then return x end
-	x =   x + u3 * v3; if n == 3 then return x end
-	x =   x + u4 * v4; return x
-end
+function lg.dot(u, v) return (hadd(mul(u, v))) end
 local dot = lg.dot
 
 function lg.cross(u, v) -- Cg only has the three-dimensional version
