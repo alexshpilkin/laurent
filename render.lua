@@ -1,6 +1,9 @@
+local image = require 'image'
 local isatty = require 'isatty'
 local options = require 'options'
 local srgb = require 'srgb'
+
+local const, lift, x, y = image.const, image.lift, image.x, image.y
 
 local opts, args = options '+f:o:v'
 assert(#args == 0)
@@ -25,10 +28,7 @@ else
 	function trace() end
 end
 
-local img = {}
-function img.value(_self, x, y)
-	return (srgb(x, y, 0.25))
-end
+local img = lift(srgb, x, y, const(0.25))
 
 local pic = assert(fmt(out, fmtopts))
 local width, height = pic.width, pic.height
