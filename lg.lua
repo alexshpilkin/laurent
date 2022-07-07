@@ -7,7 +7,7 @@
 
 local math = math
 
-local assert, pcall, require, select, setmetatable, tonumber, type = assert, pcall, require, select, setmetatable, tonumber, type
+local assert, pcall, require, select, setmetatable, tonumber, _tostring, type = assert, pcall, require, select, setmetatable, tonumber, tostring, type
 local debug_getmetatable, debug_setmetatable = debug.getmetatable, debug.setmetatable
 local find, gsub, substr = string.find, string.gsub, string.sub
 local concat, insert = table.concat, table.insert
@@ -171,7 +171,7 @@ end)
 
 function lift(f, ...)
 	local function lifted(...)
-		local r, u, v = nid(lifts[select('#', ...)](f, ...))
+		local r, u, v = nid(lifts[_tostring(select('#', ...))](f, ...))
 		if r == 0 then return end
 		if r == 1 then return u end
 		return u, v

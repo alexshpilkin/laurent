@@ -1,6 +1,6 @@
 local lg = require 'lg'
 
-local select, setmetatable = select, setmetatable
+local select, setmetatable, tostring = select, setmetatable, tostring
 local abs, hadd, hmin, hmul, max, step, tonumbers = lg.abs, lg.hadd, lg.hmin, lg.hmul, lg.max, lg.step, lg.tonumbers
 local _max, _min = math.max, math.min
 local concat, insert = table.concat, table.insert
@@ -73,7 +73,7 @@ end})
 
 function lift(func, ...)
 	local function lifted(...)
-		return (lifts[select('#', ...)](func, ...))
+		return (lifts[tostring(select('#', ...))](func, ...))
 	end
 	if select('#', ...) ~= 0 then return (lifted(...)) end
 	return lifted
