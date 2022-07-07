@@ -1,8 +1,8 @@
 local lg = require 'lg'
 
 local select, setmetatable = select, setmetatable
-local tonumbers = lg.tonumbers
-local max, min = math.max, math.min
+local abs, hadd, hmin, hmul, max, step, tonumbers = lg.abs, lg.hadd, lg.hmin, lg.hmul, lg.max, lg.step, lg.tonumbers
+local _max, _min = math.max, math.min
 local concat, insert = table.concat, table.insert
 
 local loadstring = loadstring or load
@@ -65,7 +65,7 @@ local lifts = setmetatable({}, {__index = function (self, n)
 			return min(]]..concat(mins, ', ')..[[),
 			       max(]]..concat(maxs, ', ')..[[)
 		end
-	]])(min, max)
+	]])(_min, _max)
 
 	self[n] = mt
 	return mt
@@ -94,5 +94,31 @@ function z.value(_self, ...) return tonumbers(...).z end
 function w.value(_self, ...) return tonumbers(...).w end
 
 -- unbounded
+
+-- box, triangle
+
+box = {}
+local box = box
+
+function box.value(_self, ...)
+	return (hmin(step(abs(tonumbers(...)), 0.5)))
+end
+
+function box.bound(_self, ...)
+	local b = hadd(abs(tonumbers(...))) * 0.5
+	return -b, b
+end
+
+triangle = {}
+local triangle = triangle
+
+function triangle.value(_self, ...)
+	return (hmul(max(0, 1 - abs(tonumbers(...)))))
+end
+
+function triangle.bound(_self, ...)
+	local b = hadd(abs(tonumbers(...)))
+	return -b, b
+end
 
 return _ENV
