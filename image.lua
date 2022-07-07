@@ -1,7 +1,7 @@
 local lg = require 'lg'
 
-local select, setmetatable, tostring = select, setmetatable, tostring
-local abs, hadd, hmin, hmul, max, step, tonumbers = lg.abs, lg.hadd, lg.hmin, lg.hmul, lg.max, lg.step, lg.tonumbers
+local getmetatable, rawequal, select, setmetatable, tostring = getmetatable, rawequal, select, setmetatable, tostring
+local abs, dot, hadd, hmin, hmul, max, step, tonumbers = lg.abs, lg.dot, lg.hadd, lg.hmin, lg.hmul, lg.max, lg.step, lg.tonumbers
 local _max, _min = math.max, math.min
 local concat, insert = table.concat, table.insert
 
@@ -131,6 +131,69 @@ function mul.bounded:bound(...)
 	local lmin, lmax = self.lhs:bound(...)
 	local rmin, rmax = self.rhs:bound(...)
 	return _max(lmin, rmin), _min(lmax, rmax)
+end
+
+-- translate, scale
+
+translate = setmetatable({__name = 'translate'}, {__call = function (self, object, ...)
+	local mt, d = getmetatable(object), tonumbers(...)
+	if rawequal(mt, self) or rawequal(mt, self.bounded) then
+		object, d = object.object, d + object.displacement
+	end
+	mt = object.bound and self.bounded or self
+	return setmetatable({object = object, displacement = d}, mt)
+end})
+local translate = translate
+
+translate.__index = translate
+
+translate.bounded = setmetatable({__name = 'translate.bounded'}, translate)
+translate.bounded.__index = translate.bounded
+
+function translate:value(...)
+	return (self.object:value(tonumbers(...) - self.displacement))
+end
+
+function translate:apply(field)
+	return (self.object:apply(translate(field, -self.displacement)))
+end
+
+function translate.bounded:bound(...)
+	local f = tonumbers(...)
+	local foff, fmin, fmax = dot(f, self.displacement), self.object:bound(f)
+	return fmin + foff, fmax + foff
+end
+
+scale = setmetatable({__name = 'scale'}, {__call = function (self, object, ...)
+	local mt, s = getmetatable(object), tonumbers(...)
+	if rawequal(mt, translate) or rawequal(mt, translate.bounded) then
+		return (translate(self(object.object, s), s * object.displacement))
+	end
+	local is = 1 / s
+	if rawequal(mt, self) or rawequal(mt, self.bounded) then
+		object, s, is = object.object, s * object.scale, is * object.iscale
+	end
+	mt = object.bound and self.bounded or self
+	return setmetatable({object = object, scale = s, iscale = is}, mt)
+end})
+local scale = scale
+
+scale.__index = scale
+
+scale.bounded = setmetatable({__name = 'scale.bounded'}, scale)
+scale.bounded.__index = scale.bounded
+
+function scale:value(...)
+	return (self.object:value(tonumbers(...) * self.iscale))
+end
+
+function scale:apply(field)
+	return (self.object:apply(scale(field, self.iscale)))
+end
+
+function scale.bounded:bound(...)
+	local fmin, fmax = self.object:bound(tonumbers(...) * self.scale)
+	return fmin, fmax
 end
 
 -- x, y, z, w
