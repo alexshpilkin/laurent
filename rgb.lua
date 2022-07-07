@@ -11,7 +11,7 @@ local lg = require 'lg'
 local arg, assert, ipairs, pairs, require, select, setmetatable, tonumber, type = arg, assert, ipairs, pairs, require, select, setmetatable, tonumber, type
 local write = io.write
 local clamp, lift, number3, round, sub = lg.clamp, lg.lift, lg.number3, lg.round, lg.sub
-local abs = math.abs
+local max, min = math.max, math.min
 local format = string.format
 local insert, sort = table.insert, table.sort
 
@@ -206,12 +206,12 @@ setmetatable(_ENV, {__call = function (self, data, ...)
 	-- is  f(x) = ((x + offset) / (1 + offset))^gamma.
 
 	space.transfer = lift(function (c)
-		if abs(c) <= thresh then
-			return c / slope
-		elseif c > 0 then
-			return ((c + offset) / (1 + offset))^gamma
+		if c >= 0 then
+			return ((max(c, thresh) + offset) / (1 + offset))^gamma +
+			       min(c - thresh, 0) / slope
 		else
-			return -((-c + offset) / (1 + offset))^gamma
+			return -((max(-c, thresh) + offset) / (1 + offset))^gamma +
+			       max(c + thresh, 0) / slope
 		end
 	end)
 	local transfer = space.transfer
@@ -221,12 +221,12 @@ setmetatable(_ENV, {__call = function (self, data, ...)
 	end
 
 	space.itransfer = lift(function(c)
-		if abs(c) <= ithresh then
-			return slope * c
-		elseif c > 0 then
-			return (1 + offset) * c^igamma - offset
+		if c >= 0 then
+			return (1 + offset) * max(c, ithresh)^igamma - offset +
+			       slope * min(c - ithresh, 0)
 		else
-			return -((1 + offset) * (-c)^igamma - offset)
+			return -((1 + offset) * max(-c, ithresh)^igamma - offset) +
+			       slope * max(c + ithresh, 0)
 		end
 	end)
 	local itransfer = space.itransfer
