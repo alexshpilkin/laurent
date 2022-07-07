@@ -3,7 +3,7 @@ local isatty = require 'isatty'
 local options = require 'options'
 local srgb = require 'srgb'
 
-local add, box, const, lift, x, y = image.add, image.box, image.const, image.lift, image.x, image.y
+local add, box, const, lift, mul, x, y = image.add, image.box, image.const, image.lift, image.mul, image.x, image.y
 
 local opts, args = options '+f:o:v'
 assert(#args == 0)
@@ -28,7 +28,8 @@ else
 	function trace() end
 end
 
-local img = add(box, lift(srgb, x, y, const(0.25)))
+local img = mul(box, const(srgb(0, 0, 1)))
+img = add(img, lift(srgb, x, y, const(0.25)))
 
 local pic = assert(fmt(out, fmtopts))
 local width, height = pic.width, pic.height

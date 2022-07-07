@@ -79,9 +79,59 @@ function lift(func, ...)
 	return lifted
 end
 
--- add
+-- add, sub, mul, div
 
 add = lift(function (lhs, rhs) return lhs + rhs end)
+sub = lift(function (lhs, rhs) return lhs - rhs end)
+div = lift(function (lhs, rhs) return lhs / rhs end)
+
+mul = setmetatable({__name = 'mul'}, {__call = function (self, lhs, rhs)
+	-- bounds can be tighter than for a generic lift
+	local lbound, rbound = lhs.bound, rhs.bound
+	local mt = self
+	if lbound and rbound then
+		mt = self.bounded
+	elseif lbound then
+		mt = self.lbounded
+	elseif rbound then
+		mt = self.rbounded
+	end
+	return setmetatable({lhs = lhs, rhs = rhs}, mt)
+end})
+local mul = mul
+
+mul.__index = mul
+
+mul.lbounded = setmetatable({__name = 'mul.lbounded'}, mul)
+mul.lbounded.__index = mul.lbounded
+mul.rbounded = setmetatable({__name = 'mul.rbounded'}, mul)
+mul.rbounded.__index = mul.rbounded
+mul.bounded  = setmetatable({__name = 'mul.bounded'},  mul)
+mul.bounded.__index  = mul.bounded
+
+function mul:value(...)
+	return self.lhs:value(...) * self.rhs:value(...)
+end
+
+function mul:apply(field)
+	return (self.rhs:apply(mul(field, self.lhs)))
+end
+
+function mul.lbounded:bound(...)
+	local lmin, lmax = self.lhs:bound(...)
+	return lmin, lmax
+end
+
+function mul.rbounded:bound(...)
+	local rmin, rmax = self.rhs:bound(...)
+	return rmin, rmax
+end
+
+function mul.bounded:bound(...)
+	local lmin, lmax = self.lhs:bound(...)
+	local rmin, rmax = self.rhs:bound(...)
+	return _max(lmin, rmin), _min(lmax, rmax)
+end
 
 -- x, y, z, w
 
