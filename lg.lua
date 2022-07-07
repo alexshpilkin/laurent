@@ -439,9 +439,11 @@ local saturate = saturate
 
 -- lerp, step, smoothstep
 
+local huge = math.huge
+
 function lerp(u, v, t) return mul(sub(1, t), u) + mul(t, v) end
 
-step = lift(function (e, x) return e <= x and 1 or 0 end)
+function step(e, x) return 1 - saturate(sub(e, x) * huge) end
 
 function smoothstep(u, v, w)
 	local x = saturate(sub(w, u) / sub(v, u))
