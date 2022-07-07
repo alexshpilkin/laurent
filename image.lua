@@ -79,6 +79,10 @@ function lift(func, ...)
 	return lifted
 end
 
+-- add
+
+add = lift(function (lhs, rhs) return lhs + rhs end)
+
 -- x, y, z, w
 
 x, y, z, w = {}, {}, {}, {}
