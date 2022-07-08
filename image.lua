@@ -2,7 +2,7 @@ local lg = require 'lg'
 
 local getmetatable, rawequal, select, setmetatable, tostring = getmetatable, rawequal, select, setmetatable, tostring
 local abs, dot, hadd, hmin, hmul, max, step, tonumbers = lg.abs, lg.dot, lg.hadd, lg.hmin, lg.hmul, lg.max, lg.step, lg.tonumbers
-local _max, _min = math.max, math.min
+local ceil, floor, _max, _min = math.ceil, math.floor, math.max, math.min
 local concat, insert = table.concat, table.insert
 
 local loadstring = loadstring or load
@@ -196,6 +196,29 @@ function scale.bounded:bound(...)
 	return fmin, fmax
 end
 
+-- filter
+
+filter = setmetatable({__name = 'filter'}, {__call = function (self, field, probe)
+	local mt = field.bound and probe.bound and self.bounded or self
+	return setmetatable({field = field, probe = probe}, mt)
+end})
+local filter = filter
+
+filter.__index = filter
+
+filter.bounded = setmetatable({__name = 'filter.bounded'}, filter)
+filter.bounded.__index = filter.bounded
+
+function filter:value(...)
+	return (self.probe:apply(translate(self.field, -tonumbers(...))))
+end
+
+function filter.bounded:bound(...)
+	local fmin, fmax = self.field:bound(...)
+	local pmin, pmax = self.probe:bound(...)
+	return fmin + pmin, fmax + pmax
+end
+
 -- x, y, z, w
 
 x, y, z, w = {}, {}, {}, {}
@@ -232,6 +255,70 @@ end
 function triangle.bound(_self, ...)
 	local b = hadd(abs(tonumbers(...)))
 	return -b, b
+end
+
+-- grid, grid2, grid3, grid4
+
+local function snap(tmin, tmax)
+	return ceil(tmin), floor(tmax)
+end
+
+grid = {}
+local grid = grid
+
+function grid.apply(_self, field)
+	local xmin, xmax = snap(field:bound(1))
+
+	local sum = 0
+	for i = xmin, xmax do
+		sum = sum + field:value(i)
+	end
+	return sum
+end
+
+grid2 = {}
+local grid2 = grid2
+
+function grid2.apply(_self, field)
+	local xmin, xmax = snap(field:bound(tonumbers(1, 0)))
+	local ymin, ymax = snap(field:bound(tonumbers(0, 1)))
+
+	local sum = 0
+	for i = xmin, xmax do for j = ymin, ymax do
+		sum = sum + field:value(i, j)
+	end end
+	return sum
+end
+
+grid3 = {}
+local grid3 = grid3
+
+function grid3.apply(_self, field)
+	local xmin, xmax = snap(field:bound(tonumbers(1, 0, 0)))
+	local ymin, ymax = snap(field:bound(tonumbers(0, 1, 0)))
+	local zmin, zmax = snap(field:bound(tonumbers(0, 0, 1)))
+
+	local sum = 0
+	for i = xmin, xmax do for j = ymin, ymax do for k = zmin, zmax do
+		sum = sum + field:value(i, j, k)
+	end end end
+	return sum
+end
+
+grid4 = {}
+local grid4 = grid4
+
+function grid4.apply(_self, field)
+	local xmin, xmax = snap(field:bound(tonumbers(1, 0, 0, 0)))
+	local ymin, ymax = snap(field:bound(tonumbers(0, 1, 0, 0)))
+	local zmin, zmax = snap(field:bound(tonumbers(0, 0, 1, 0)))
+	local wmin, wmax = snap(field:bound(tonumbers(0, 0, 0, 1)))
+
+	local sum = 0
+	for i = xmin, xmax do for j = ymin, ymax do for k = zmin, zmax do for l = wmin, wmax do
+		sum = sum + field:value(i, j, k, l)
+	end end end end
+	return sum
 end
 
 return _ENV
