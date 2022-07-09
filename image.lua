@@ -1,7 +1,7 @@
 local lg = require 'lg'
 
 local getmetatable, rawequal, select, setmetatable, tostring = getmetatable, rawequal, select, setmetatable, tostring
-local abs, dot, hadd, hmin, hmul, max, step, tonumbers = lg.abs, lg.dot, lg.hadd, lg.hmin, lg.hmul, lg.max, lg.step, lg.tonumbers
+local abs, dot, hadd, hmin, hmul, max, number2, number3, number4, step, tonumbers = lg.abs, lg.dot, lg.hadd, lg.hmin, lg.hmul, lg.max, lg.number2, lg.number3, lg.number4, lg.step, lg.tonumbers
 local ceil, floor, _max, _min = math.ceil, math.floor, math.max, math.min
 local concat, insert = table.concat, table.insert
 
@@ -280,12 +280,12 @@ grid2 = {}
 local grid2 = grid2
 
 function grid2.apply(_self, field)
-	local xmin, xmax = snap(field:bound(tonumbers(1, 0)))
-	local ymin, ymax = snap(field:bound(tonumbers(0, 1)))
+	local xmin, xmax = snap(field:bound(number2(1, 0)))
+	local ymin, ymax = snap(field:bound(number2(0, 1)))
 
 	local sum = 0
 	for i = xmin, xmax do for j = ymin, ymax do
-		sum = sum + field:value(i, j)
+		sum = sum + field:value(number2(i, j))
 	end end
 	return sum
 end
@@ -294,13 +294,13 @@ grid3 = {}
 local grid3 = grid3
 
 function grid3.apply(_self, field)
-	local xmin, xmax = snap(field:bound(tonumbers(1, 0, 0)))
-	local ymin, ymax = snap(field:bound(tonumbers(0, 1, 0)))
-	local zmin, zmax = snap(field:bound(tonumbers(0, 0, 1)))
+	local xmin, xmax = snap(field:bound(number3(1, 0, 0)))
+	local ymin, ymax = snap(field:bound(number3(0, 1, 0)))
+	local zmin, zmax = snap(field:bound(number3(0, 0, 1)))
 
 	local sum = 0
 	for i = xmin, xmax do for j = ymin, ymax do for k = zmin, zmax do
-		sum = sum + field:value(i, j, k)
+		sum = sum + field:value(number3(i, j, k))
 	end end end
 	return sum
 end
@@ -309,14 +309,14 @@ grid4 = {}
 local grid4 = grid4
 
 function grid4.apply(_self, field)
-	local xmin, xmax = snap(field:bound(tonumbers(1, 0, 0, 0)))
-	local ymin, ymax = snap(field:bound(tonumbers(0, 1, 0, 0)))
-	local zmin, zmax = snap(field:bound(tonumbers(0, 0, 1, 0)))
-	local wmin, wmax = snap(field:bound(tonumbers(0, 0, 0, 1)))
+	local xmin, xmax = snap(field:bound(number4(1, 0, 0, 0)))
+	local ymin, ymax = snap(field:bound(number4(0, 1, 0, 0)))
+	local zmin, zmax = snap(field:bound(number4(0, 0, 1, 0)))
+	local wmin, wmax = snap(field:bound(number4(0, 0, 0, 1)))
 
 	local sum = 0
 	for i = xmin, xmax do for j = ymin, ymax do for k = zmin, zmax do for l = wmin, wmax do
-		sum = sum + field:value(i, j, k, l)
+		sum = sum + field:value(number4(i, j, k, l))
 	end end end end
 	return sum
 end
