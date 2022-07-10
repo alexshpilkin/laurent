@@ -1,8 +1,9 @@
 local lg = require 'lg'
 
-local getmetatable, rawequal, select, setmetatable, tostring = getmetatable, rawequal, select, setmetatable, tostring
-local abs, dot, hadd, hmin, hmul, max, number2, number3, number4, step, tonumbers = lg.abs, lg.dot, lg.hadd, lg.hmin, lg.hmul, lg.max, lg.number2, lg.number3, lg.number4, lg.step, lg.tonumbers
+local assert, getmetatable, rawequal, select, setmetatable, tostring = assert, getmetatable, rawequal, select, setmetatable, tostring
+local abs, dot, hadd, hmin, hmul, length, max, number2, number3, number4, step, tonumbers = lg.abs, lg.dot, lg.hadd, lg.hmin, lg.hmul, lg.length, lg.max, lg.number2, lg.number3, lg.number4, lg.step, lg.tonumbers
 local ceil, floor, _max, _min = math.ceil, math.floor, math.max, math.min
+local substr = string.sub
 local concat, insert = table.concat, table.insert
 
 local loadstring = loadstring or load
@@ -26,11 +27,12 @@ end
 -- unbounded
 
 local lifts = setmetatable({}, {__index = function (self, n)
-	local imgs, init, bded, vals, bnds, mins, maxs = {}, {}, {}, {}, {}, {}, {}
+	local imgs, init, bded, dims, vals, bnds, mins, maxs = {}, {}, {}, {}, {}, {}, {}, {}
 	for i = 1, n do
 		insert(imgs, 'img'..i)
 		insert(init, 'img'..i..' = img'..i)
 		insert(bded, 'img'..i..'.bound')
+		insert(dims, 'img'..i..'.dim')
 		insert(vals, 'self.img'..i..':value(...)')
 		insert(bnds, 'local min'..i..', max'..i..' = self.img'..i..':bound(...)')
 		insert(mins, 'min'..i)
@@ -43,7 +45,8 @@ local lifts = setmetatable({}, {__index = function (self, n)
 			local ]]..concat(imgs, ', ')..[[ = ...
 			local mt = ]]..concat(bded, ' and ')..[[ and self.bounded or self
 			return setmetatable({
-				func = func, ]]..concat(init, ', ')..[[
+				func = func, ]]..concat(init, ', ')..[[,
+				dim = ]]..concat(dims, ' or ')..[[,
 			}, mt)
 		end
 	]])(setmetatable)})
@@ -96,7 +99,7 @@ mul = setmetatable({__name = 'mul'}, {__call = function (self, lhs, rhs)
 	elseif rbound then
 		mt = self.rbounded
 	end
-	return setmetatable({lhs = lhs, rhs = rhs}, mt)
+	return setmetatable({lhs = lhs, rhs = rhs, dim = lhs.dim or rhs.dim}, mt)
 end})
 local mul = mul
 
@@ -141,7 +144,9 @@ translate = setmetatable({__name = 'translate'}, {__call = function (self, objec
 		object, d = object.object, d + object.displacement
 	end
 	mt = object.bound and self.bounded or self
-	return setmetatable({object = object, displacement = d}, mt)
+	return setmetatable({
+		object = object, displacement = d, dim = object.dim or d._n
+	}, mt)
 end})
 local translate = translate
 
@@ -174,7 +179,9 @@ scale = setmetatable({__name = 'scale'}, {__call = function (self, object, ...)
 		object, s, is = object.object, s * object.scale, is * object.iscale
 	end
 	mt = object.bound and self.bounded or self
-	return setmetatable({object = object, scale = s, iscale = is}, mt)
+	return setmetatable({
+		object = object, scale = s, iscale = is, dim = object.dim or s._n
+	}, mt)
 end})
 local scale = scale
 
@@ -200,7 +207,9 @@ end
 
 filter = setmetatable({__name = 'filter'}, {__call = function (self, field, probe)
 	local mt = field.bound and probe.bound and self.bounded or self
-	return setmetatable({field = field, probe = probe}, mt)
+	return setmetatable({
+		field = field, probe = probe, dim = field.dim or probe.dim
+	}, mt)
 end})
 local filter = filter
 
@@ -217,6 +226,90 @@ function filter.bounded:bound(...)
 	local fmin, fmax = self.field:bound(...)
 	local pmin, pmax = self.probe:bound(...)
 	return fmin + pmin, fmax + pmax
+end
+
+-- separable, radial
+
+local separables = setmetatable({}, {__index = function (self, key)
+	local mt = {__name = 'separable'..key}
+	mt.__index = mt
+
+	mt.bounded = setmetatable({__name = 'separable'..key..'.bounded'}, mt)
+	mt.bounded.__index = mt.bounded
+
+	local n, vals, bnds, mins, maxs = 1, {}, {}, {}, {}
+	for i = 1, #key do
+		local d = substr(key, i, i)
+		local v = concat({'v._1', 'v._2', 'v._3', 'v._4'}, ', ', n, n + d)
+		insert(vals, 'self.img'..i..':value(tonumbers('..v..'))')
+		insert(bnds, 'local min'..i..', max'..i..' = '..
+		             'self.img'..i..':bound(tonumbers('..v..'))')
+		insert(mins, 'min'..i)
+		insert(maxs, 'max'..i)
+		n = n + d
+	end
+	assert(n - 1 <= 4, "too many dimensions")
+	mt.dim = n - 1
+
+	mt.value = loadstring([[
+		local tonumbers = ...
+		return function (self, ...)
+			local v = tonumbers(...)
+			return ]]..concat(vals, ' * ')..[[
+		end
+	]])(tonumbers)
+
+	mt.bounded.bound = loadstring([[
+		local tonumbers = ...
+		return function (self, ...)
+			local v = tonumbers(...)
+			]]..concat(bnds, '\n')..[[
+			return ]]..concat(mins, ' + ')..[[,
+			       ]]..concat(maxs, ' + ')..[[
+		end
+	]])(tonumbers)
+
+	self[key] = mt
+	return mt
+end})
+
+separable = setmetatable({__name = 'separable'}, {__call = function (_self, img1, img2, img3, img4)
+	local mt = separables[(img1 and (img1.dim or 1) or '') ..
+	                      (img2 and (img2.dim or 1) or '') ..
+	                      (img3 and (img3.dim or 1) or '') ..
+	                      (img4 and (img4.dim or 1) or '')]
+
+	if (not img1 or img1.bound) and (not img2 or img2.bound) and
+	   (not img3 or img3.bound) and (not img4 or img4.bound)
+	then
+		mt = mt.bounded
+	end
+
+	return setmetatable({
+		img1 = img1, img2 = img2, img3 = img3, img4 = img4,
+	}, mt)
+end})
+
+radial = setmetatable({__name = 'radial'}, {__call = function (self, linear)
+	local bound = linear.bound
+	if not bound then return setmetatable({linear = linear}, self) end
+	local _, radius = bound(linear, 1)
+	return setmetatable({linear = linear, radius = radius}, self.bounded)
+end})
+local radial = radial
+
+radial.__index = radial
+
+radial.bounded = setmetatable({__name = 'radial.bounded'}, radial)
+radial.bounded.__index = radial.bounded
+
+function radial:value(...)
+	return (self.linear:value(length(tonumbers(...))))
+end
+
+function radial.bounded:bound(...)
+	local r = self.radius * length(tonumbers(...))
+	return -r, r
 end
 
 -- x, y, z, w
@@ -263,7 +356,7 @@ local function snap(tmin, tmax)
 	return ceil(tmin), floor(tmax)
 end
 
-grid = {}
+grid = {dim = 1}
 local grid = grid
 
 function grid.apply(_self, field)
@@ -276,7 +369,7 @@ function grid.apply(_self, field)
 	return sum
 end
 
-grid2 = {}
+grid2 = {dim = 2}
 local grid2 = grid2
 
 function grid2.apply(_self, field)
@@ -290,7 +383,7 @@ function grid2.apply(_self, field)
 	return sum
 end
 
-grid3 = {}
+grid3 = {dim = 3}
 local grid3 = grid3
 
 function grid3.apply(_self, field)
@@ -305,7 +398,7 @@ function grid3.apply(_self, field)
 	return sum
 end
 
-grid4 = {}
+grid4 = {dim = 4}
 local grid4 = grid4
 
 function grid4.apply(_self, field)

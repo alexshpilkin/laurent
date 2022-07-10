@@ -3,7 +3,7 @@ local isatty = require 'isatty'
 local options = require 'options'
 local srgb = require 'srgb'
 
-local add, box, const, filter, grid2, lift, mul, scale, translate, triangle, x, y = image.add, image.box, image.const, image.filter, image.grid2, image.lift, image.mul, image.scale, image.translate, image.triangle, image.x, image.y
+local add, box, const, filter, grid2, lift, mul, radial, scale, separable, translate, triangle, x, y = image.add, image.box, image.const, image.filter, image.grid2, image.lift, image.mul, image.radial, image.scale, image.separable, image.translate, image.triangle, image.x, image.y
 
 local opts, args = options '+f:o:v'
 assert(#args == 0)
@@ -28,8 +28,8 @@ else
 	function trace() end
 end
 
-local img = translate(mul(box, const(srgb(0, 0, 1))), 0, -0.25)
-img = mul(img, filter(scale(triangle, 0.05), scale(grid2, 0.1)))
+local img = translate(mul(radial(box), const(srgb(0, 0, 1))), 0, -0.25)
+img = mul(img, scale(filter(scale(separable(triangle, box), 0.5), grid2), 0.1))
 img = translate(scale(img, 0.5), 0.5)
 img = add(img, lift(srgb, x, y, const(0.25)))
 

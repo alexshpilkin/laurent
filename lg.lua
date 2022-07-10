@@ -289,6 +289,8 @@ local function makemetatable(n)
 	if n < 3 then indices.z, indices.b, indices.p = nope, nope, nope end
 	if n < 2 then indices.y, indices.g, indices.t = nope, nope, nope end
 
+	if n > 1 then indices._n = function () return n end end
+
 	return {
 		__name = 'number' .. n,
 		__tostring = tostring,
