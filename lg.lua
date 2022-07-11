@@ -69,30 +69,33 @@ end
 
 local _number2, _number3, _number4
 
+-- FIXME the handling of extra arguments is slightly inconsistent here
+
 function number2(_1, _2)
 	local n; n, _1, _2 = shift(_1, shift(_2, 0))
 	if n == 1 then n, _2 = 2, _1 end
-	assert(n == 2, "wrong component count")
+	assert(n == 2, "bad component count")
 	return (_number2(_1, _2))
 end
 
 function number3(_1, _2, _3)
 	local n; n, _1, _2, _3 = shift(_1, shift(_2, shift(_3, 0)))
 	if n == 1 then n, _2, _3 = 3, _1, _1 end
-	assert(n == 3, "wrong component count")
+	assert(n == 3, "bad component count")
 	return (_number3(_1, _2, _3))
 end
 
 function number4(_1, _2, _3, _4)
 	local n; n, _1, _2, _3, _4 = shift(_1, shift(_2, shift(_3, shift(_4, 0))))
 	if n == 1 then n, _2, _3, _4 = 4, _1, _1, _1 end
-	assert(n == 4, "wrong component count")
+	assert(n == 4, "bad component count")
 	return (_number4(_1, _2, _3, _4))
 end
 
 function tonumbers(_1, _2, _3, _4, ...)
 	local n; n, _1, _2, _3, _4 = shift(_1, shift(_2, shift(_3, shift(_4, 0))))
-	assert(n and n <= 4 and select('#', ...) == 0, "numbers expected")
+	assert(n, "numbers expected")
+	assert(1 <= n and n <= 4 and select('#', ...) == 0, "bad component count")
 	if n == 1 then return _1 end
 	if n == 2 then return (_number2(_1, _2)) end
 	if n == 3 then return (_number3(_1, _2, _3)) end
@@ -108,7 +111,7 @@ local function conform(u, v)
 	if un == 1 then un, u2, u3, u4 = vn, u1, u1, u1 end
 	if vn == 1 then vn, v2, v3, v4 = un, v1, v1, v1 end
 	assert(un and vn, "numbers expected")
-	assert(un > 0 and (vn == 0 or vn == un), "component counts do not match")
+	assert(1 <= un and un == vn, "component counts do not match")
 	return un, u1, v1, u2, v2, u3, v3, u4, v4
 end
 
@@ -183,6 +186,8 @@ local lift = lift
 
 function hlift1(f, v)
 	local n, v1, v2, v3, v4 = shift(v, 0)
+	assert(n, "numbers expected")
+	assert(1 <= n, "bad component count")
 	local x = v1; if n == 1 then return x end
 	x = f(x, v2); if n == 2 then return x end
 	x = f(x, v3); if n == 3 then return x end
