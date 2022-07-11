@@ -3,7 +3,7 @@ local isatty = require 'isatty'
 local options = require 'options'
 local srgb = require 'srgb'
 
-local add, box, const, filter, grid2, lift, mul, radial, scale, separable, translate, triangle, x, y = image.add, image.box, image.const, image.filter, image.grid2, image.lift, image.mul, image.radial, image.scale, image.separable, image.translate, image.triangle, image.x, image.y
+local add, average, box, const, filter, grid2, jitter2, lift, mul, radial, scale, separable, translate, triangle, x, y = image.add, image.average, image.box, image.const, image.filter, image.grid2, image.jitter2, image.lift, image.mul, image.radial, image.scale, image.separable, image.translate, image.triangle, image.x, image.y
 
 local opts, args = options '+f:o:v'
 assert(#args == 0)
@@ -35,6 +35,7 @@ img = add(img, lift(srgb, x, y, const(0.25)))
 
 local pic = assert(fmt(out, fmtopts))
 local width, height = pic.width, pic.height
+img = filter(img, scale(average(jitter2, 64), 1 / width, 1 / height))
 for j = height - 1, 0, -1 do
 	trace('%d / %d lines', height-j-1, height)
 	for i = 0, width - 1 do

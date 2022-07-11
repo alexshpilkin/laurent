@@ -1,8 +1,8 @@
 local lg = require 'lg'
 
-local assert, getmetatable, rawequal, select, setmetatable, tostring = assert, getmetatable, rawequal, select, setmetatable, tostring
+local assert, getmetatable, rawequal, select, setmetatable, tonumber, tostring = assert, getmetatable, rawequal, select, setmetatable, tonumber, tostring
 local abs, dot, hadd, hmin, hmul, length, max, number2, number3, number4, step, tonumbers = lg.abs, lg.dot, lg.hadd, lg.hmin, lg.hmul, lg.length, lg.max, lg.number2, lg.number3, lg.number4, lg.step, lg.tonumbers
-local ceil, floor, _max, _min = math.ceil, math.floor, math.max, math.min
+local ceil, floor, _max, _min, random = math.ceil, math.floor, math.max, math.min, math.random
 local substr = string.sub
 local concat, insert = table.concat, table.insert
 
@@ -412,6 +412,80 @@ function grid4.apply(_self, field)
 		sum = sum + field:value(number4(i, j, k, l))
 	end end end end
 	return sum
+end
+
+-- jitter, jitter2, jitter3, jitter4
+
+jitter = {dim = 1}
+local jitter = jitter
+
+function jitter.apply(_self, field)
+	return (field:value(random() - 0.5))
+end
+
+function jitter.bound(_self, x)
+	local b = abs(tonumber(x)) * 0.5
+	return -b, b
+end
+
+jitter2 = {dim = 2}
+local jitter2 = jitter2
+
+function jitter2.apply(_self, field)
+	return (field:value(number2(random() - 0.5, random() - 0.5)))
+end
+
+function jitter2.bound(_self, ...)
+	local b = hadd(abs(number2(...))) * 0.5
+	return -b, b
+end
+
+jitter3 = {dim = 3}
+local jitter3 = jitter3
+
+function jitter3.apply(_self, field)
+	return (field:value(number3(random() - 0.5, random() - 0.5, random() - 0.5)))
+end
+
+function jitter3.bound(_self, ...)
+	local b = hadd(abs(number3(...))) * 0.5
+	return -b, b
+end
+
+jitter4 = {dim = 4}
+local jitter4 = jitter4
+
+function jitter4.apply(_self, field)
+	return (field:value(number4(random() - 0.5, random() - 0.5,
+	                            random() - 0.5, random() - 0.5)))
+end
+
+function jitter4.bound(_self, ...)
+	local b = hadd(abs(number4(...))) * 0.5
+	return -b, b
+end
+
+-- average
+
+average = setmetatable({__name = 'average'}, {__call = function (self, probe, count)
+	local mt = probe.bound and self.bounded or self
+	return setmetatable({probe = probe, count = count}, mt)
+end})
+
+average.__index = average
+
+average.bounded = setmetatable({__name = 'average.bounded'}, average)
+average.bounded.__index = average.bounded
+
+function average:apply(field)
+	local sum, count, probe = 0, self.count, self.probe
+	for _ = 1, count do sum = sum + probe:apply(field) end
+	return sum / count
+end
+
+function average.bounded:bound(...)
+	local fmin, fmax = self.probe:bound(...)
+	return fmin, fmax
 end
 
 return _ENV
